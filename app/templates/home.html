@@ -1,14 +1,29 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
+
 <head>
-    <title>MaixPy Camera Stream</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; background-color: #282c34; color: white; }
-        img { border: 2px solid #c80000; border-radius: 8px; margin-top: 20px; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MaixPy 智能控制面板</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
-    <h1>Live MaixPy Camera Feed</h1>
-    <img src="{{ url_for('main.video_feed') }}" width="320" height="240">
+    <div class="main-container">
+        <header>
+            <h1>MaixPy 集成控制面板</h1>
+        </header>
+
+        <div class="grid-container">
+            <!-- 使用 include 指令将各个面板的HTML代码包含进来 -->
+            {% include 'modules/_camera.html' %}
+            {% include 'modules/_detection.html' %}
+            {% include 'modules/_car.html' %}
+            {% include 'modules/_arm.html' %}
+        </div>
+    </div>
+
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
+
 </html>
