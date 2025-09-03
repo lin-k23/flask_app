@@ -1,27 +1,90 @@
-// --- Part 3: Trajectory Logic ---
+// app/static/js/modules/car.js
 
-export function initTrajectory() {
-    const canvas = document.getElementById('trajectory-canvas');
-    const ctx = canvas.getContext('2d');
-    let x = canvas.width / 2;
-    let y = canvas.height / 2;
+export function initCarControls() {
+    // --- 获取所有UI元素 ---
+    const controlButtons = document.querySelectorAll('.car-btn');
+    const carLogReceivedEl = document.getElementById('car-log-received');
+    const carSpeedInput = document.getElementById('car-speed');
+    const carLogSentEl = document.getElementById('car-log-sent');
 
-    function drawTrajectory() {
-        // 绘制轨迹的占位逻辑
-        ctx.fillStyle = '#3f51b5';
-        ctx.beginPath();
-        ctx.arc(x, y, 2, 0, Math.PI * 2);
-        ctx.fill();
+    // --- [新功能] 获取新增的UI元素 ---
+    const modeButtons = document.querySelectorAll('.car-mode-btn');
+    const customCommandInput = document.getElementById('car-command');
+    const sendCustomBtn = document.getElementById('send-car-command');
 
-        // 模拟运动
-        x += (Math.random() - 0.5) * 5;
-        y += (Math.random() - 0.5) * 5;
+    // 1. 为手动控制按钮添加点击事件
+    controlButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const action = button.dataset.command;
+            const speed = carSpeedInput.value;
+            let command = (action === 'stop') ? `{${action}}` : `{${action}:${speed}}`;
+            sendCarCommand(command);
+        });
+    });
 
-        // 边界检查
-        if (x < 0) x = 0; if (x > canvas.width) x = canvas.width;
-        if (y < 0) y = 0; if (y > canvas.height) y = canvas.height;
+    // --- [新功能] 2. 为模式切换按钮添加点击事件 ---
+    modeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const command = button.dataset.command;
+            sendCarCommand(command);
+        });
+    });
+
+    // --- [新功能] 3. 实现发送自定义指令的功能 ---
+    function sendCustomCarCommand() {
+        const command = customCommandInput.value;
+        if (!command) return; // 如果输入为空则不发送
+        sendCarCommand(command);
+        customCommandInput.value = ''; // 发送后清空输入框
+    }
+    sendCustomBtn.addEventListener('click', sendCustomCarCommand);
+    customCommandInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            sendCustomCarCommand();
+        }
+    });
+
+    // --- 核心发送逻辑 (现在被多处调用) ---
+    function sendCarCommand(command) {
+        logToCarSent(command); // 记录到发送日志
+
+        fetch('/api/send_car_command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: command }),
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Backend response:', data.message);
+            })
+            .catch(error => console.error('发送小车指令失败:', error));
     }
 
-    // 每500毫秒更新一次轨迹
-    setInterval(drawTrajectory, 500);
+    // --- 日志与状态更新 (保持不变) ---
+    function logToCarSent(message) {
+        const p = document.createElement('p');
+        p.textContent = `> ${message}`;
+        carLogSentEl.appendChild(p);
+        carLogSentEl.scrollTop = carLogSentEl.scrollHeight;
+    }
+
+    function fetchCarStatus() {
+        fetch('/api/car_status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.log && data.log.length > 0) {
+                    carLogReceivedEl.innerHTML = '';
+                    data.log.forEach(msg => {
+                        const p = document.createElement('p');
+                        p.textContent = `< ${msg}`;
+                        carLogReceivedEl.appendChild(p);
+                    });
+                    carLogReceivedEl.scrollTop = carLogReceivedEl.scrollHeight;
+                } else {
+                    carLogReceivedEl.innerHTML = '<p>> 暂无新消息</p>';
+                }
+            })
+            .catch(error => console.error('获取小车状态失败:', error));
+    }
+    setInterval(fetchCarStatus, 2000);
 }

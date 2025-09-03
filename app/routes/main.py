@@ -92,3 +92,24 @@ def send_vision_data():
             return jsonify({"status": "error", "message": "未检测到AprilTag"})
 
     return jsonify({"status": "error", "message": "无效的数据类型"})
+
+
+@main_bp.route("/api/send_car_command", methods=["POST"])
+def send_car_command():
+    """接收并处理发送给小车的指令。"""
+    data = request.json
+    command = data.get("command")
+
+    if not command:
+        return jsonify({"status": "error", "message": "Command is empty"}), 400
+
+    current_app.car_controller.send_command(command)
+    current_app.logger.info(f"Car command sent: {command}")
+    return jsonify({"status": "success", "message": f"Command '{command}' sent to car"})
+
+
+@main_bp.route("/api/car_status", methods=["GET"])
+def get_car_status():
+    """提供从车载接收到的最新日志。"""
+    log = current_app.car_controller.get_received_log()
+    return jsonify({"log": log})

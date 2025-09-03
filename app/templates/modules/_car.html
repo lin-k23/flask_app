@@ -1,5 +1,48 @@
-<!-- Part 3: Trajectory -->
-<div class="grid-item panel-trajectory">
-    <h2>4. 小车运动轨迹</h2>
-    <canvas id="trajectory-canvas" width="400" height="300"></canvas>
+<div class="grid-item panel-car-control">
+    <h2>4. 小车运动控制</h2>
+
+    <div class="control-group movement-controls">
+        <div class="speed-control">
+            <label for="car-speed">速度 (%)</label>
+            <input type="number" id="car-speed" value="80" min="0" max="100">
+        </div>
+        <div class="car-dir-controls">
+            <button class="car-btn" data-command="forward">▲</button>
+            <div class="car-dir-middle-row">
+                <button class="car-btn" data-command="left">◀</button>
+                <button class="car-btn" data-command="stop">■</button>
+                <button class="car-btn" data-command="right">▶</button>
+            </div>
+            <button class="car-btn" data-command="backward">▼</button>
+        </div>
+    </div>
+
+    <div class="control-group mode-controls">
+        <button class="car-mode-btn" data-command="{auto_track_start}">自动循迹</button>
+        <button class="car-mode-btn" data-command="{manual_control}">手柄控制</button>
+        <button class="car-mode-btn" data-command="{set_task_1}">设定任务</button>
+    </div>
+
+    <div class="control-group custom-command-section">
+        <h3>发送自定义指令</h3>
+        <div class="car-custom-input">
+            <input type="text" id="car-command" placeholder="输入小车自定义指令...">
+            <button id="send-car-command">发送</button>
+        </div>
+    </div>
+
+    <div class="log-section">
+        <div class="car-log-box">
+            <h4>发送指令日志</h4>
+            <div id="car-log-sent" class="log-box small-log">
+                <p>> 等待发送指令...</p>
+            </div>
+        </div>
+        <div class="car-log-box">
+            <h4>小车返回日志</h4>
+            <div id="car-log-received" class="log-box small-log">
+                <p>> 等待来自小车的消息...</p>
+            </div>
+        </div>
+    </div>
 </div>
