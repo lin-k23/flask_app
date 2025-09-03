@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MaixPy Camera Stream</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background-color: #282c34; color: white; }
+        img { border: 2px solid #c80000; border-radius: 8px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Live MaixPy Camera Feed</h1>
+    <img src="{{ url_for('main.video_feed') }}" width="320" height="240">
+</body>
+</html>
