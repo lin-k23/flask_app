@@ -3,6 +3,8 @@ import math
 import threading
 import collections
 
+"""调用线程锁防止数据竞争和不一致性"""
+
 try:
     # Attempt to import the real hardware library
     from maix import uart
@@ -24,6 +26,9 @@ class ArmController:
         self.serial_port = None
         self.received_log = collections.deque(maxlen=50)  # 存储最多50条收到的消息
         self.lock = threading.Lock()
+
+        # --- 添加一个专门用于发送指令的锁 ---
+        self.send_lock = threading.Lock()
 
         try:
             self.serial_port = uart.UART(port, baudrate)
@@ -64,81 +69,88 @@ class ArmController:
             return list(self.received_log)
 
     def send_arm_point_bulk(self, point_name, point_data):
-        if not self.serial_port:
-            return
-        print(
-            f"指令发送 -> 目标: {point_name}, 数据: {[f'{v:.2f}' for v in point_data]}"
-        )
-        bulk_byte_data = bytearray()
-        for value in point_data:
-            try:
-                integer_value = int(value)
-                bulk_byte_data.extend(integer_value.to_bytes(2, "big", signed=True))
-            except Exception as e:
-                print(f"!!! 转换数据 {value} 时出错: {e}")
+        # Add a lock for sending commands
+        with self.send_lock:
+            if not self.serial_port:
                 return
-        self.serial_port.write_str(f"START\n")
-        time.sleep(0.01)
-        self.serial_port.write(bytes(bulk_byte_data))
-        time.sleep(0.01)
-        self.serial_port.write_str(f"END\n")
-        print(f"坐标点 '{point_name}' ({len(bulk_byte_data)}字节) 发送完成。")
+            print(
+                f"指令发送 -> 目标: {point_name}, 数据: {[f'{v:.2f}' for v in point_data]}"
+            )
+            bulk_byte_data = bytearray()
+            for value in point_data:
+                try:
+                    integer_value = int(value)
+                    bulk_byte_data.extend(integer_value.to_bytes(2, "big", signed=True))
+                except Exception as e:
+                    print(f"!!! 转换数据 {value} 时出错: {e}")
+                    return
+            self.serial_port.write_str(f"START\n")
+            time.sleep(0.01)
+            self.serial_port.write(bytes(bulk_byte_data))
+            time.sleep(0.01)
+            self.serial_port.write_str(f"END\n")
+            print(f"坐标点 '{point_name}' ({len(bulk_byte_data)}字节) 发送完成。")
 
     def send_arm_offset_and_angle_bulk(self, offset_x, offset_y, angle):
-        if not self.serial_port:
-            return
-        print(
-            f"指令发送 -> 目标: OFFSET, 数据: X={offset_x}, Y={offset_y}, Angle={angle:.2f}"
-        )
-        bulk_offset_data = bytearray()
-        try:
-            val_x = int(offset_x)
-            val_y = int(offset_y)
-            val_angle = int(angle)
-            bulk_offset_data.extend(val_x.to_bytes(2, "big", signed=True))
-            bulk_offset_data.extend(val_y.to_bytes(2, "big", signed=True))
-            bulk_offset_data.extend(val_angle.to_bytes(2, "big", signed=True))
-        except Exception as e:
-            print(f"!!! 处理偏移值或角度 {offset_x}, {offset_y}, {angle} 时出错: {e}")
-            return
-        self.serial_port.write_str(f"START_OFFSET\n")
-        time.sleep(0.01)
-        self.serial_port.write(bytes(bulk_offset_data))
-        time.sleep(0.01)
-        self.serial_port.write_str(f"END_OFFSET\n")
-        print(f"偏移与角度 ({len(bulk_offset_data)}字节) 发送完成。")
+        with self.send_lock:
+            if not self.serial_port:
+                return
+            print(
+                f"指令发送 -> 目标: OFFSET, 数据: X={offset_x}, Y={offset_y}, Angle={angle:.2f}"
+            )
+            bulk_offset_data = bytearray()
+            try:
+                val_x = int(offset_x)
+                val_y = int(offset_y)
+                val_angle = int(angle)
+                bulk_offset_data.extend(val_x.to_bytes(2, "big", signed=True))
+                bulk_offset_data.extend(val_y.to_bytes(2, "big", signed=True))
+                bulk_offset_data.extend(val_angle.to_bytes(2, "big", signed=True))
+            except Exception as e:
+                print(
+                    f"!!! 处理偏移值或角度 {offset_x}, {offset_y}, {angle} 时出错: {e}"
+                )
+                return
+            self.serial_port.write_str(f"START_OFFSET\n")
+            time.sleep(0.01)
+            self.serial_port.write(bytes(bulk_offset_data))
+            time.sleep(0.01)
+            self.serial_port.write_str(f"END_OFFSET\n")
+            print(f"偏移与角度 ({len(bulk_offset_data)}字节) 发送完成。")
 
     def send_april_tag_offset(self, center_x, center_y, distance):
-        if not self.serial_port:
-            return
-        print(
-            f"指令发送 -> 目标: TAG_O, 数据: X={center_x}, Y={center_y}, Distance={distance:.2f}"
-        )
-        bulk_offset_data = bytearray()
-        try:
-            val_x = int(center_x)
-            val_y = int(center_y)
-            val_distance = int(distance)
-            bulk_offset_data.extend(val_x.to_bytes(2, "big", signed=True))
-            bulk_offset_data.extend(val_y.to_bytes(2, "big", signed=True))
-            bulk_offset_data.extend(val_distance.to_bytes(2, "big", signed=True))
-        except Exception as e:
-            print(f"!!! 处理TAG时 {center_x}, {center_y}, {distance} 时出错: {e}")
-            return
-        self.serial_port.write_str(f"START_TAG\n")
-        time.sleep(0.01)
-        self.serial_port.write(bytes(bulk_offset_data))
-        time.sleep(0.01)
-        self.serial_port.write_str(f"END_TAG\n")
-        print(f"April TAG 坐标 ({len(bulk_offset_data)}字节) 发送完成。")
+        with self.send_lock:
+            if not self.serial_port:
+                return
+            print(
+                f"指令发送 -> 目标: TAG_O, 数据: X={center_x}, Y={center_y}, Distance={distance:.2f}"
+            )
+            bulk_offset_data = bytearray()
+            try:
+                val_x = int(center_x)
+                val_y = int(center_y)
+                val_distance = int(distance)
+                bulk_offset_data.extend(val_x.to_bytes(2, "big", signed=True))
+                bulk_offset_data.extend(val_y.to_bytes(2, "big", signed=True))
+                bulk_offset_data.extend(val_distance.to_bytes(2, "big", signed=True))
+            except Exception as e:
+                print(f"!!! 处理TAG时 {center_x}, {center_y}, {distance} 时出错: {e}")
+                return
+            self.serial_port.write_str(f"START_TAG\n")
+            time.sleep(0.01)
+            self.serial_port.write(bytes(bulk_offset_data))
+            time.sleep(0.01)
+            self.serial_port.write_str(f"END_TAG\n")
+            print(f"April TAG 坐标 ({len(bulk_offset_data)}字节) 发送完成。")
 
     def handle_command(self, command_string):
         """处理从API接收到的字符串指令，并直接发送。"""
-        if not self.serial_port:
-            return
-        print(f"处理API指令: {command_string}")
-        # 直接将字符串指令通过串口发送出去
-        self.serial_port.write_str(command_string)
+        with self.send_lock:
+            if not self.serial_port:
+                return
+            print(f"处理API指令: {command_string}")
+            # 直接将字符串指令通过串口发送出去
+            self.serial_port.write_str(command_string)
 
 
 # --- 辅助函数 ---

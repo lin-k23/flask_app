@@ -14,8 +14,20 @@
     <div class="sub-panel">
         <h4>发送视觉数据</h4>
         <div class="vision-controls">
-            <button id="send-blob-data" class="vision-btn">发送色块位置</button>
-            <button id="send-tag-data" class="vision-btn">发送AprilTag位置</button>
+            <div class="switch-container">
+                <label for="send-blob-switch">发送色块位置</label>
+                <label class="switch">
+                    <input type="checkbox" id="send-blob-switch">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div class="switch-container">
+                <label for="send-tag-switch">发送AprilTag位置</label>
+                <label class="switch">
+                    <input type="checkbox" id="send-tag-switch">
+                    <span class="slider round"></span>
+                </label>
+            </div>
         </div>
         <div id="vision-send-log" class="log-box small-log">
             <p>> 视觉数据发送记录</p>
