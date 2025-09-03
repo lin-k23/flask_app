@@ -2,7 +2,14 @@ import time
 import math
 import threading
 import collections
-from maix import uart
+
+try:
+    # Attempt to import the real hardware library
+    from maix import uart
+except (ImportError, ModuleNotFoundError):
+    # If it fails, use the mock library for PC development
+    print("!!! maix.uart not found, switching to MOCK mode for development. !!!")
+    from .maix_mock import uart
 
 
 class ArmController:

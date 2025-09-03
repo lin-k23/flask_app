@@ -1,9 +1,18 @@
 import threading
 import time
-from maix import camera, image
+import os
+import tempfile
+
+try:
+    # 优先尝试在真实硬件上运行
+    from maix import camera, image
+except ImportError:
+    # 如果失败（在PC上调试），则使用模拟模块
+    print("!!! maix library not found, switching to MOCK mode for development. !!!")
+    from .maix_mock import camera, image
 
 # 定义一个常量来存储临时文件路径，使用/tmp通常会写入RAM
-TEMP_FRAME_PATH = "/tmp/vision_frame.jpg"
+TEMP_FRAME_PATH = os.path.join(tempfile.gettempdir(), "vision_frame.jpg")
 
 
 class VisionProcessor:
@@ -90,10 +99,10 @@ class VisionProcessor:
                 largest_blob.cx(), largest_blob.cy(), color=image.COLOR_RED, size=10
             )
             return {
-                "x": largest_blob.cx(),
-                "y": largest_blob.cy(),
-                "w": largest_blob.w(),
-                "h": largest_blob.h(),
+                "x": int(largest_blob.cx()),  # <--- 强制转换为 int
+                "y": int(largest_blob.cy()),  # <--- 强制转换为 int
+                "w": int(largest_blob.w()),  # <--- 强制转换为 int
+                "h": int(largest_blob.h()),  # <--- 强制转换为 int
                 "detected": True,
             }
         return {"detected": False}
@@ -117,7 +126,12 @@ class VisionProcessor:
             cx, cy = tag.cx(), tag.cy()
             img.draw_cross(cx, cy, color=image.COLOR_GREEN, size=10)
 
-            return {"id": tag.id(), "x": cx, "y": cy, "detected": True}
+            return {
+                "id": tag.id(),
+                "x": int(cx),  # <--- 强制转换为 int
+                "y": int(cy),  # <--- 强制转换为 int
+                "detected": True,
+            }
         return {"detected": False}
 
     def get_latest_frame(self):
