@@ -81,17 +81,63 @@ pre {
     border-radius: 4px;
 }
 
-/* Part 4: Arm Communication */
-#arm-log {
-    flex-grow: 1;
+/* Part 4: Arm Communication (新样式) */
+.panel-arm {
+    gap: 15px;
+    /* 子面板之间的间距 */
+}
+
+.sub-panel {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+.sub-panel h4 {
+    margin: 0 0 10px 0;
+    color: #5c6bc0;
+}
+
+.log-box {
     background-color: #333;
-    color: #0f0;
+    color: #eee;
     font-family: "SF Mono", "Consolas", "Menlo", monospace;
+    font-size: 0.9em;
     padding: 10px;
     border-radius: 4px;
     overflow-y: auto;
-    height: 150px;
+    height: 120px;
+}
+
+.small-log {
+    height: 60px;
+    color: #ccc;
+}
+
+.log-box p {
+    margin: 0 0 5px 0;
+    word-break: break-all;
+}
+
+.vision-controls {
+    display: flex;
+    gap: 10px;
     margin-bottom: 10px;
+}
+
+.vision-btn {
+    flex-grow: 1;
+    padding: 10px;
+    border: none;
+    background-color: #5c6bc0;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.vision-btn:hover {
+    background-color: #3f51b5;
 }
 
 .arm-control {

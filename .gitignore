@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Flask
+instance/
+.webassets-cache/
+
+# Environment variables
+.env
+*.env
+
+# Temporary files
+/tmp/
+*.tmp
+*.log
+
+# MaixPy specific (if any)
+# e.g., build artifacts or local configs
