@@ -1,19 +1,8 @@
-<!-- Part 4: Arm Communication -->
 <div class="grid-item panel-arm">
-    <h2>2. 机械臂通讯</h2>
-
-    <!-- 子面板 1: 接收日志 -->
-    <div class="sub-panel">
-        <h4>接收日志</h4>
-        <div id="arm-log-received" class="log-box">
-            <p>> 等待来自机械臂的消息...</p>
-        </div>
-    </div>
-
-    <!-- 子面板 2: 视觉数据发送 -->
-    <div class="sub-panel">
-        <h4>发送视觉数据</h4>
-        <div class="vision-controls">
+    <h2>机械臂通讯</h2>
+    <div class="main-controls">
+        <div class="control-group">
+            <h4>发送视觉数据</h4>
             <div class="switch-container">
                 <label for="send-blob-switch">发送色块位置</label>
                 <label class="switch">
@@ -29,17 +18,25 @@
                 </label>
             </div>
         </div>
-        <div id="vision-send-log" class="log-box small-log">
-            <p>> 视觉数据发送记录</p>
-        </div>
     </div>
 
-    <!-- 子面板 3: 自定义指令发送 -->
-    <div class="sub-panel">
-        <h4>发送自定义指令</h4>
-        <div class="arm-control">
-            <input type="text" id="arm-command" placeholder="输入自定义指令...">
-            <button id="send-arm-command">发送</button>
+    <div class="advanced-controls">
+        <div class="control-group">
+            <h4>自定义指令</h4>
+            <div class="custom-input-group">
+                <input type="text" id="arm-command" placeholder="输入机械臂自定义指令...">
+                <button id="send-arm-command">发送</button>
+            </div>
+        </div>
+        <div class="logs-group">
+            <div class="log-container">
+                <h4>发送日志</h4>
+                <div id="vision-send-log" class="log-box small-log"></div>
+            </div>
+            <div class="log-container">
+                <h4>接收日志</h4>
+                <div id="arm-log-received" class="log-box small-log"></div>
+            </div>
         </div>
     </div>
 </div>

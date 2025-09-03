@@ -2,6 +2,7 @@
 import { initDetection } from './modules/detection.js';
 import { initCarControls } from './modules/car.js';
 import { initArm } from './modules/arm.js';
+import { initSystemControls } from './modules/system.js';
 
 // 监听'DOMContentLoaded'事件，确保在整个HTML页面都准备好之后再执行代码
 document.addEventListener('DOMContentLoaded', function () {
@@ -9,5 +10,6 @@ document.addEventListener('DOMContentLoaded', function () {
     initDetection();
     initCarControls();
     initArm();
+    initSystemControls();
     console.log("所有模块已初始化。");
 });

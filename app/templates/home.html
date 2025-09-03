@@ -4,24 +4,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MaixPy 智能控制面板</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>MaixPy 集成控制面板</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/panels.css') }}">
 </head>
 
 <body>
-    <div class="main-container">
-        <header>
-            <h1>MaixPy 集成控制面板</h1>
-        </header>
+    <header>
+        <h1>MaixPy 集成控制面板</h1>
+    </header>
 
-        <div class="grid-container">
+    <main class="three-column-layout">
+
+        {% include 'modules/_arm.html' %}
+
+        <div class="center-panel-wrapper">
             {% include 'modules/_camera.html' %}
-            {% include 'modules/_arm.html' %}
-
             {% include 'modules/_detection.html' %}
-            {% include 'modules/_car.html' %}
+            {% include 'modules/_system.html' %}
         </div>
-    </div>
+
+        {% include 'modules/_car.html' %}
+
+    </main>
 
     <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

@@ -1,27 +1,42 @@
-# my_flask_app/app/__init__.py
+# app/__init__.py
 
 from flask import Flask
 from config import Config
 
-# 1. 导入我们的控制器类和视觉处理器类
 from .modules.arm_control import ArmController
 from .modules.vision import VisionProcessor
 from .modules.car_control import CarController
+
+
+def stop_background_threads(app):
+    """A function to gracefully stop all running threads."""
+    if hasattr(app, "vision_processor") and app.vision_processor:
+        app.vision_processor.stop()
+    if hasattr(app, "arm_controller") and app.arm_controller:
+        app.arm_controller.stop()
+    if hasattr(app, "car_controller") and app.car_controller:
+        app.car_controller.stop_thread()
+    print("All background threads have been stopped.")
+
+
+def start_background_services(app):
+    """A function to initialize and start all services."""
+    print("Starting background services...")
+    app.arm_controller = ArmController()
+    app.vision_processor = VisionProcessor()
+    app.car_controller = CarController()
+
+    app.vision_processor.start()
+    print("All background services started.")
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # 2. 在这里实例化我们的核心服务
-    app.arm_controller = ArmController()
-    app.vision_processor = VisionProcessor()
-    app.car_controller = CarController()
+    # Initial start of services
+    start_background_services(app)
 
-    # 3. 启动后台线程
-    app.vision_processor.start()
-
-    # 4. 注册蓝图
     from .routes.main import main_bp
 
     app.register_blueprint(main_bp)

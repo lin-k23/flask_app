@@ -1,3 +1,8 @@
+# app/routes/main.py
+
+import os
+import signal
+from .. import stop_background_threads, start_background_services
 from flask import Blueprint, render_template, Response, jsonify, request, current_app
 import time
 
@@ -113,3 +118,29 @@ def get_car_status():
     """提供从车载接收到的最新日志。"""
     log = current_app.car_controller.get_received_log()
     return jsonify({"log": log})
+
+
+@main_bp.route("/api/soft_restart", methods=["POST"])
+def soft_restart():
+    """Stops and restarts the background threads."""
+    app = current_app._get_current_object()
+    print("--- Received soft restart request ---")
+    stop_background_threads(app)
+    # Re-initialize and start services
+    start_background_services(app)
+    return jsonify({"status": "success", "message": "核心服务已重启"})
+
+
+@main_bp.route("/api/shutdown", methods=["POST"])
+def shutdown():
+    """Shuts down the entire application."""
+    app = current_app._get_current_object()
+    print("--- Received shutdown request ---")
+    stop_background_threads(app)
+
+    # A short delay to allow the response to be sent
+    time.sleep(1)
+
+    # This will stop the Waitress server or Flask dev server
+    os.kill(os.getpid(), signal.SIGINT)
+    return jsonify({"status": "success", "message": "服务正在关闭..."})
