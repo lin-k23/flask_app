@@ -4,6 +4,7 @@ import time
 import tempfile
 import os
 import math
+import copy  # <--- 1. 导入 copy 模块
 
 try:
     from maix import camera, image, nn
@@ -99,7 +100,15 @@ class VisionProcessor:
     def _detect_yolo(self, img):
         if not self.detector:
             return {"detected": False, "objects": []}
-        objs = self.detector.detect(img, conf_th=CONF_THRESHOLD, iou_th=IOU_THRESHOLD)
+
+        try:
+            objs = self.detector.detect(
+                img, conf_th=CONF_THRESHOLD, iou_th=IOU_THRESHOLD
+            )
+        except Exception:
+            # 如果检测失败，返回安全默认值
+            return {"detected": False, "objects": []}
+
         formatted_objects = []
         for obj in objs:
             center_x = obj.x + obj.w // 2
@@ -111,7 +120,6 @@ class VisionProcessor:
             img.draw_string(obj.x, obj.y - 15, msg, image.COLOR_RED)
             img.draw_cross(center_x, center_y, image.COLOR_GREEN)
 
-            # --- [核心修正] 强制转换所有数值类型 ---
             formatted_objects.append(
                 {
                     "x": int(obj.x),
@@ -129,10 +137,13 @@ class VisionProcessor:
             )
         if formatted_objects:
             formatted_objects.sort(key=lambda o: o["area"], reverse=True)
+            # --- [核心修正] ---
+            # 使用 copy() 来创建一个新的字典，而不是直接引用，以确保数据类型安全
+            primary_target = formatted_objects[0].copy()
             return {
                 "detected": True,
                 "objects": formatted_objects,
-                "primary_target": formatted_objects[0],
+                "primary_target": primary_target,
             }
         return {"detected": False, "objects": []}
 
@@ -190,7 +201,8 @@ class VisionProcessor:
 
     def get_latest_data(self):
         with self.lock:
-            return self.latest_data
+            # 返回数据的深拷贝，确保线程安全
+            return copy.deepcopy(self.latest_data)
 
 
 def calculate_angle_from_corners(corners):

@@ -5,7 +5,8 @@ export function initDetection() {
     const colorBlockDataEl = document.getElementById('color-block-data');
     const apriltagDataEl = document.getElementById('apriltag-data');
     const yoloDataEl = document.getElementById('yolo-data');
-    const yoloOverlayEl = document.getElementById('yolo-overlay-info');
+    // --- [核心修正] 移除了不存在的 yolo-overlay-info 元素 ---
+    // const yoloOverlayEl = document.getElementById('yolo-overlay-info');
     const blobToggleSwitch = document.getElementById('toggle-blob-switch');
 
     // 为色块检测开关添加事件监听器
@@ -57,25 +58,18 @@ export function initDetection() {
                     apriltagDataEl.textContent = '未检测到';
                 }
 
-                // --- [核心修正] 更新YOLOv5数据显示 ---
+                // 更新YOLOv5数据显示
                 if (data.yolo_objects && data.yolo_objects.detected) {
-                    let yoloPanelText = '';  // 用于检测面板的详细文本
-                    let yoloOverlayText = '';// 用于摄像头覆盖层的简洁文本
+                    let yoloPanelText = '';
 
                     data.yolo_objects.objects.forEach(obj => {
-                        // 格式化检测面板的文本，确保包含偏移量
                         yoloPanelText += `标签: ${obj.label}, 置信度: ${obj.score}\n`;
                         yoloPanelText += `  └─ offset_x:${obj.offset_x}, offset_y:${obj.offset_y}\n`;
-
-                        // 格式化摄像头覆盖层的文本，确保包含中心坐标
-                        yoloOverlayText += `[${obj.label}: (${obj.center_x}, ${obj.center_y})] `;
                     });
 
                     yoloDataEl.textContent = yoloPanelText.trim();
-                    yoloOverlayEl.textContent = yoloOverlayText.trim();
                 } else {
                     yoloDataEl.textContent = '未检测到目标';
-                    yoloOverlayEl.textContent = ''; // 如果没有目标，清空覆盖层
                 }
             })
             .catch(error => {
@@ -84,7 +78,6 @@ export function initDetection() {
                 colorBlockDataEl.textContent = 'API错误';
                 apriltagDataEl.textContent = 'API错误';
                 yoloDataEl.textContent = 'API错误';
-                yoloOverlayEl.textContent = 'API错误';
             });
     }
 
