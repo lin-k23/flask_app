@@ -2,32 +2,24 @@ import time
 import math
 import threading
 import collections
-
-"""调用线程锁防止数据竞争和不一致性"""
+import struct
 
 try:
-    # Attempt to import the real hardware library
     from maix import uart
 except (ImportError, ModuleNotFoundError):
-    # If it fails, use the mock library for PC development
     print("!!! maix.uart not found, switching to MOCK mode for development. !!!")
     from .maix_mock import uart
 
 
 class ArmController:
     """
-    封装了与机械臂通信和控制所有逻辑的类，包含后台双向通信。
+    封装了与机械臂通信和控制所有逻辑的类。
     """
 
     def __init__(self, port="/dev/ttyS0", baudrate=115200):
-        """
-        初始化串口通信，并启动一个后台线程来持续接收数据。
-        """
         self.serial_port = None
-        self.received_log = collections.deque(maxlen=50)  # 存储最多50条收到的消息
+        self.received_log = collections.deque(maxlen=50)
         self.lock = threading.Lock()
-
-        # --- 添加一个专门用于发送指令的锁 ---
         self.send_lock = threading.Lock()
 
         try:
@@ -40,7 +32,6 @@ class ArmController:
             print(f"!!! Failed to initialize arm controller on {port}: {e}")
 
     def _read_loop(self):
-        """后台线程，用于持续读取串口数据。"""
         while not self.stopped:
             if self.serial_port:
                 try:
@@ -54,121 +45,73 @@ class ArmController:
                                 )
                 except Exception as e:
                     print(f"Error reading from arm serial port: {e}")
-                    time.sleep(1)  # 发生错误时等待一下
+                    time.sleep(1)
             time.sleep(0.01)
 
     def stop(self):
-        """停止后台线程。"""
         self.stopped = True
         if self.reader_thread.is_alive():
             self.reader_thread.join()
 
     def get_received_log(self):
-        """线程安全地获取接收到的消息日志。"""
         with self.lock:
             return list(self.received_log)
 
-    def send_arm_point_bulk(self, point_name, point_data):
-        # Add a lock for sending commands
-        with self.send_lock:
-            if not self.serial_port:
-                return
-            print(
-                f"指令发送 -> 目标: {point_name}, 数据: {[f'{v:.2f}' for v in point_data]}"
-            )
-            bulk_byte_data = bytearray()
-            for value in point_data:
-                try:
-                    integer_value = int(value)
-                    bulk_byte_data.extend(integer_value.to_bytes(2, "big", signed=True))
-                except Exception as e:
-                    print(f"!!! 转换数据 {value} 时出错: {e}")
-                    return
-            self.serial_port.write_str(f"START\n")
-            time.sleep(0.01)
-            self.serial_port.write(bytes(bulk_byte_data))
-            time.sleep(0.01)
-            self.serial_port.write_str(f"END\n")
-            print(f"坐标点 '{point_name}' ({len(bulk_byte_data)}字节) 发送完成。")
+    def _create_packet(self, data_type, payload):
+        length = len(payload)
+        header = bytearray([0xAA, 0x55])
+        dt_byte = data_type.to_bytes(1, "big")
+        length_byte = length.to_bytes(1, "big")
+        checksum_val = (data_type + length + sum(payload)) & 0xFF
+        checksum_byte = checksum_val.to_bytes(1, "big")
+        tail = bytearray([0x0D, 0x0A])
+        packet = header + dt_byte + length_byte + payload + checksum_byte + tail
+        return packet
 
     def send_arm_offset_and_angle_bulk(self, offset_x, offset_y, angle):
         with self.send_lock:
             if not self.serial_port:
-                return
-            print(
-                f"指令发送 -> 目标: OFFSET, 数据: X={offset_x}, Y={offset_y}, Angle={angle:.2f}"
-            )
-            bulk_offset_data = bytearray()
+                return "错误: 串口不可用"
+
+            angle_to_send = int(angle)
+
             try:
-                val_x = int(offset_x)
-                val_y = int(offset_y)
-                val_angle = int(angle)
-                bulk_offset_data.extend(val_x.to_bytes(2, "big", signed=True))
-                bulk_offset_data.extend(val_y.to_bytes(2, "big", signed=True))
-                bulk_offset_data.extend(val_angle.to_bytes(2, "big", signed=True))
-            except Exception as e:
-                print(
-                    f"!!! 处理偏移值或角度 {offset_x}, {offset_y}, {angle} 时出错: {e}"
+                payload = struct.pack(
+                    ">hhh", int(offset_x), int(offset_y), angle_to_send
                 )
-                return
-            self.serial_port.write_str(f"START_OFFSET\n")
-            time.sleep(0.01)
-            self.serial_port.write(bytes(bulk_offset_data))
-            time.sleep(0.01)
-            self.serial_port.write_str(f"END_OFFSET\n")
-            print(f"偏移与角度 ({len(bulk_offset_data)}字节) 发送完成。")
+                packet = self._create_packet(0x01, payload)
+                self.serial_port.write(bytes(packet))
+                # --- [核心修改] 返回详细的发送信息 ---
+                sent_info = f"色块: {packet.hex().upper()}"
+                print(f"发送 -> {sent_info}")
+                return sent_info
+            except Exception as e:
+                error_info = f"!!! 打包色块数据时出错: {e}"
+                print(error_info)
+                return error_info
 
     def send_april_tag_offset(self, center_x, center_y, distance):
         with self.send_lock:
             if not self.serial_port:
-                return
-            print(
-                f"指令发送 -> 目标: TAG_O, 数据: X={center_x}, Y={center_y}, Distance={distance:.2f}"
-            )
-            bulk_offset_data = bytearray()
+                return "错误: 串口不可用"
+
             try:
-                val_x = int(center_x)
-                val_y = int(center_y)
-                val_distance = int(distance)
-                bulk_offset_data.extend(val_x.to_bytes(2, "big", signed=True))
-                bulk_offset_data.extend(val_y.to_bytes(2, "big", signed=True))
-                bulk_offset_data.extend(val_distance.to_bytes(2, "big", signed=True))
+                payload = struct.pack(
+                    ">hhh", int(center_x), int(center_y), int(distance)
+                )
+                packet = self._create_packet(0x02, payload)
+                self.serial_port.write(bytes(packet))
+                # --- [核心修改] 返回详细的发送信息 ---
+                sent_info = f"AprilTag: {packet.hex().upper()}"
+                print(f"发送 -> {sent_info}")
+                return sent_info
             except Exception as e:
-                print(f"!!! 处理TAG时 {center_x}, {center_y}, {distance} 时出错: {e}")
-                return
-            self.serial_port.write_str(f"START_TAG\n")
-            time.sleep(0.01)
-            self.serial_port.write(bytes(bulk_offset_data))
-            time.sleep(0.01)
-            self.serial_port.write_str(f"END_TAG\n")
-            print(f"April TAG 坐标 ({len(bulk_offset_data)}字节) 发送完成。")
+                error_info = f"!!! 打包AprilTag数据时出错: {e}"
+                print(error_info)
+                return error_info
 
     def handle_command(self, command_string):
-        """处理从API接收到的字符串指令，并直接发送。"""
-        with self.send_lock:
-            if not self.serial_port:
-                return
-            print(f"处理API指令: {command_string}")
-            # 直接将字符串指令通过串口发送出去
-            self.serial_port.write_str(command_string)
-
-
-# --- 辅助函数 ---
-def calculate_angle_from_corners(corners):
-    # ... 此函数内容保持不变 ...
-    dx1, dy1 = corners[1][0] - corners[0][0], corners[1][1] - corners[0][1]
-    len_sq1 = dx1**2 + dy1**2
-    dx2, dy2 = corners[2][0] - corners[1][0], corners[2][1] - corners[1][1]
-    len_sq2 = dx2**2 + dy2**2
-
-    final_dx, final_dy = (dx1, dy1) if len_sq1 > len_sq2 else (dx2, dy2)
-
-    rotation_rad = math.atan2(final_dy, final_dx)
-    rotation_deg = math.degrees(rotation_rad)
-
-    if rotation_deg < 0:
-        rotation_deg += 180
-    if rotation_deg > 90:
-        rotation_deg -= 90
-
-    return rotation_rad, rotation_deg
+        print(
+            f"警告：尝试通过已禁用的 handle_command 发送指令 '{command_string}'。操作已取消。"
+        )
+        return "警告: 自定义字符串指令已禁用"

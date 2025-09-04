@@ -1,5 +1,6 @@
 <div class="grid-item panel-car-control">
     <h2>小车运动控制</h2>
+
     <div class="main-controls">
         <div class="control-group">
             <h4>手动遥控</h4>
@@ -8,7 +9,7 @@
                     <label for="car-speed">速度(%)</label>
                     <input type="number" id="car-speed" value="80" min="0" max="100">
                 </div>
-                <div class="car-dir-controls">
+                <div class="car-d-pad">
                     <button class="car-btn" data-command="forward">▲</button>
                     <button class="car-btn" data-command="left">◀</button>
                     <button class="car-btn" data-command="stop">■</button>
@@ -28,21 +29,14 @@
     </div>
 
     <div class="advanced-controls">
-        <div class="control-group">
-            <h4>自定义指令</h4>
-            <div class="custom-input-group">
-                <input type="text" id="car-command" placeholder="输入小车自定义指令...">
-                <button id="send-car-command">发送</button>
-            </div>
-        </div>
         <div class="logs-group">
             <div class="log-container">
                 <h4>发送日志</h4>
-                <div id="car-log-sent" class="log-box small-log"></div>
+                <div id="car-log-sent" class="log-box"></div>
             </div>
             <div class="log-container">
                 <h4>接收日志</h4>
-                <div id="car-log-received" class="log-box small-log"></div>
+                <div id="car-log-received" class="log-box"></div>
             </div>
         </div>
     </div>

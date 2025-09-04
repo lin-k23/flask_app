@@ -4,8 +4,8 @@ export function initArm() {
     // 获取所有UI元素
     const receivedLogEl = document.getElementById('arm-log-received');
     const visionLogEl = document.getElementById('vision-send-log');
-    const customCommandInput = document.getElementById('arm-command');
-    const sendCustomBtn = document.getElementById('send-arm-command');
+    // const customCommandInput = document.getElementById('arm-command');
+    // const sendCustomBtn = document.getElementById('send-arm-command');
 
     // --- [新功能] 获取开关元素 ---
     const blobSwitch = document.getElementById('send-blob-switch');
@@ -101,27 +101,27 @@ export function initArm() {
 
 
     // 3. 发送自定义指令 (不变)
-    function sendCustomCommand() {
-        const command = customCommandInput.value;
-        if (!command) return;
-        logTo(visionLogEl, `发送自定义指令: ${command}`);
-        fetch('/api/send_arm_command', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ command: command }),
-        })
-            .then(response => response.json())
-            .then(data => {
-                logTo(visionLogEl, `后端响应: ${data.message}`);
-            })
-            .catch(error => {
-                console.error('发送自定义指令失败:', error);
-                logTo(visionLogEl, `错误: ${error}`);
-            });
-        customCommandInput.value = '';
-    }
-    sendCustomBtn.addEventListener('click', sendCustomCommand);
-    customCommandInput.addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') { sendCustomCommand(); }
-    });
+    // function sendCustomCommand() {
+    //     const command = customCommandInput.value;
+    //     if (!command) return;
+    //     logTo(visionLogEl, `发送自定义指令: ${command}`);
+    //     fetch('/api/send_arm_command', {
+    //         method: 'POST',
+    //         headers: { 'Content-Type': 'application/json' },
+    //         body: JSON.stringify({ command: command }),
+    //     })
+    //         .then(response => response.json())
+    //         .then(data => {
+    //             logTo(visionLogEl, `后端响应: ${data.message}`);
+    //         })
+    //         .catch(error => {
+    //             console.error('发送自定义指令失败:', error);
+    //             logTo(visionLogEl, `错误: ${error}`);
+    //         });
+    //     customCommandInput.value = '';
+    // }
+    // sendCustomBtn.addEventListener('click', sendCustomCommand);
+    // customCommandInput.addEventListener('keypress', function (e) {
+    //     if (e.key === 'Enter') { sendCustomCommand(); }
+    // });
 }

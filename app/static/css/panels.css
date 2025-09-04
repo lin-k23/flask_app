@@ -63,6 +63,7 @@
     /* 开关之间的分隔线 */
 }
 
+/* app/static/css/panels.css */
 /* --- Car Panel Specifics --- */
 .car-manual-controls {
     display: flex;
@@ -99,16 +100,21 @@
     appearance: none;
 }
 
-.car-dir-controls {
+/* [核心] 恢复D-Pad(方向盘)的网格布局 */
+.car-d-pad {
     display: grid;
-    grid-template-areas: ". f ." "l s r" ". b .";
+    grid-template-areas:
+        ". f ."
+        "l s r"
+        ". b .";
     gap: 8px;
+    width: 180px;
+    /* 定义一个固定尺寸以保持形状 */
+    height: 180px;
 }
 
 .car-btn {
     font-size: 1.5em;
-    width: 55px;
-    height: 55px;
     border: none;
     border-radius: 12px;
     background-color: #5c6bc0;
@@ -129,6 +135,7 @@
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+/* [核心] 将每个按钮精确地放置在网格区域中 */
 .car-btn[data-command="forward"] {
     grid-area: f;
 }
