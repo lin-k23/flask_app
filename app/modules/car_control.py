@@ -4,20 +4,35 @@ import time
 import collections
 
 try:
-    from maix import uart
+    from maix import uart, pinmap  # <--- 1. 导入 pinmap 库
 except (ImportError, ModuleNotFoundError):
-    print("!!! maix.uart not found for car, switching to MOCK mode. !!!")
+    print("!!! maix.uart/pinmap not found for car, switching to MOCK mode. !!!")
+
+    # 在模拟模式下，创建一个空的 pinmap 对象，避免出错
+    class MockPinmap:
+        def set_pin_function(self, pin, func):
+            print(f"--- [MOCK] Setting pin {pin} to function {func} ---")
+
+    pinmap = MockPinmap()
     from .maix_mock import uart
 
 
 class CarController:
     def __init__(self, port="/dev/ttyS2", baudrate=115200):
         self.serial_port = None
-        self.received_log = collections.deque(maxlen=50)  # 存储日志
-        self.send_lock = threading.Lock()  # 发送锁，防止冲突
-        self.reader_lock = threading.Lock()  # 读取锁
+        self.received_log = collections.deque(maxlen=50)
+        self.send_lock = threading.Lock()
+        self.reader_lock = threading.Lock()
 
         try:
+            # --- [核心修改] ---
+            # 在初始化UART之前，先设置引脚功能
+            print("Setting pin functions for Car UART (UART2)...")
+            pinmap.set_pin_function("A28", "UART2_TX")
+            pinmap.set_pin_function("A29", "UART2_RX")
+            print("Pin functions for Car UART set successfully.")
+            # --- [修改结束] ---
+
             self.serial_port = uart.UART(port, baudrate)
             self.stopped = False
             self.reader_thread = threading.Thread(target=self._read_loop, daemon=True)
@@ -55,10 +70,17 @@ class CarController:
             return list(self.received_log)
 
     def send_command(self, command_string):
-        """线程安全地向小车发送指令。"""
+        """
+        线程安全地向小车发送指令，并按照协议进行打包。
+        """
         with self.send_lock:
             if not self.serial_port:
                 print("!!! Car serial port not available.")
                 return
-            print(f"Sending to car: {command_string}")
-            self.serial_port.write_str(command_string + "\n")  # 加换行符确保接收完整
+
+            packet_to_send = f"##{command_string}\r\n"
+
+            print(f"Sending to car (raw): {command_string}")
+            print(f"Sending to car (packet): {repr(packet_to_send)}")
+
+            self.serial_port.write_str(packet_to_send)

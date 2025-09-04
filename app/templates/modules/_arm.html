@@ -1,22 +1,28 @@
 <div class="grid-item panel-arm">
-    <h2>机械臂通讯</h2>
-    <div class="main-controls">
-        <div class="control-group">
-            <h4>发送视觉数据</h4>
-            <div class="switch-container">
-                <label for="send-blob-switch">发送色块位置</label>
-                <label class="switch">
-                    <input type="checkbox" id="send-blob-switch">
-                    <span class="slider round"></span>
-                </label>
-            </div>
-            <div class="switch-container">
-                <label for="send-tag-switch">发送AprilTag位置</label>
-                <label class="switch">
-                    <input type="checkbox" id="send-tag-switch">
-                    <span class="slider round"></span>
-                </label>
-            </div>
+    <h2>2. 机械臂通讯</h2>
+
+    <div class="control-group">
+        <h4>发送视觉数据</h4>
+        <div class="switch-container">
+            <label for="send-blob-switch">发送色块位置</label>
+            <label class="switch">
+                <input type="checkbox" id="send-blob-switch">
+                <span class="slider round"></span>
+            </label>
+        </div>
+        <div class="switch-container">
+            <label for="send-tag-switch">发送AprilTag位置</label>
+            <label class="switch">
+                <input type="checkbox" id="send-tag-switch">
+                <span class="slider round"></span>
+            </label>
+        </div>
+        <div class="switch-container">
+            <label for="send-yolo-switch">发送YOLO目标</label>
+            <label class="switch">
+                <input type="checkbox" id="send-yolo-switch">
+                <span class="slider round"></span>
+            </label>
         </div>
     </div>
 
@@ -24,11 +30,11 @@
         <div class="logs-group">
             <div class="log-container">
                 <h4>发送日志</h4>
-                <div id="vision-send-log" class="log-box small-log"></div>
+                <div id="vision-send-log" class="log-box"></div>
             </div>
             <div class="log-container">
                 <h4>接收日志</h4>
-                <div id="arm-log-received" class="log-box small-log"></div>
+                <div id="arm-log-received" class="log-box"></div>
             </div>
         </div>
     </div>

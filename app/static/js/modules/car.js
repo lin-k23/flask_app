@@ -1,13 +1,14 @@
-// app/static/js/modules/car.js
+// 文件: app/static/js/modules/car.js (最终修正版)
 
 export function initCarControls() {
-    // --- 获取UI元素 ---
+    // --- 获取所有需要交互的UI元素 ---
     const controlButtons = document.querySelectorAll('.car-btn');
+    const modeButtons = document.querySelectorAll('.car-mode-btn'); // <--- 确保选中了模式按钮
     const carLogReceivedEl = document.getElementById('car-log-received');
     const carSpeedInput = document.getElementById('car-speed');
     const carLogSentEl = document.getElementById('car-log-sent');
 
-    // 1. 为手动控制按钮添加点击事件
+    // 1. 为手动控制的方向按钮添加点击事件
     controlButtons.forEach(button => {
         button.addEventListener('click', () => {
             const action = button.dataset.command;
@@ -17,7 +18,15 @@ export function initCarControls() {
         });
     });
 
-    // --- 核心发送逻辑 ---
+    // 2. [核心修正] 为模式切换按钮添加点击事件
+    modeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const command = button.dataset.command; // 例如: "{auto_track_start}"
+            sendCarCommand(command);
+        });
+    });
+
+    // --- 核心发送逻辑 (被所有按钮调用) ---
     function sendCarCommand(command) {
         logToCarSent(command);
         fetch('/api/send_car_command', {
@@ -32,9 +41,9 @@ export function initCarControls() {
 
     // --- 日志与状态更新 ---
     function logToCarSent(message) {
-        // 在日志开头插入新消息，而不是末尾追加
         const p = document.createElement('p');
         p.textContent = `> ${message}`;
+        // 将新日志插入到最前面，而不是追加到末尾
         carLogSentEl.insertBefore(p, carLogSentEl.firstChild);
     }
 

@@ -1,4 +1,13 @@
 <div class="grid-item panel-detection">
+    <div class="vision-feature-controls">
+        <div class="switch-container">
+            <label for="toggle-blob-switch">启用色块检测</label>
+            <label class="switch">
+                <input type="checkbox" id="toggle-blob-switch" checked>
+                <span class="slider round"></span>
+            </label>
+        </div>
+    </div>
     <div class="data-box">
         <h3>色块坐标</h3>
         <pre id="color-block-data">等待数据...</pre>
@@ -6,5 +15,9 @@
     <div class="data-box">
         <h3>AprilTag 坐标与ID</h3>
         <pre id="apriltag-data">等待数据...</pre>
+    </div>
+    <div class="data-box">
+        <h3>YOLOv5 目标检测</h3>
+        <pre id="yolo-data">等待模型加载...</pre>
     </div>
 </div>

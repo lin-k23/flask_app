@@ -31,6 +31,7 @@ def video_feed():
     )
 
 
+# (确保 get_detection_data 函数是这个简洁的版本)
 @main_bp.route("/api/detection_data", methods=["GET"])
 def get_detection_data():
     data = current_app.vision_processor.get_latest_data()
@@ -47,10 +48,7 @@ def get_arm_status():
 def send_arm_command():
     command_data = request.json
     command = command_data.get("command")
-
-    # 调用控制器方法并获取返回的详细信息
     response_message = current_app.arm_controller.handle_command(command)
-
     return jsonify({"status": "info", "message": response_message})
 
 
@@ -65,10 +63,11 @@ def send_vision_data():
     if vision_data_type == "color_block":
         blob_data = latest_vision_data.get("color_block")
         if blob_data and blob_data.get("detected"):
-            # 调用控制器方法并获取返回的详细信息
             response_message = (
                 current_app.arm_controller.send_arm_offset_and_angle_bulk(
-                    blob_data["x"], blob_data["y"], blob_data.get("angle", 0)
+                    blob_data.get("offset_x", 0),
+                    blob_data.get("offset_y", 0),
+                    blob_data.get("angle", 0),
                 )
             )
             status = "success"
@@ -79,13 +78,27 @@ def send_vision_data():
     elif vision_data_type == "apriltag":
         tag_data = latest_vision_data.get("apriltag")
         if tag_data and tag_data.get("detected"):
-            # 调用控制器方法并获取返回的详细信息
             response_message = current_app.arm_controller.send_april_tag_offset(
-                tag_data["x"], tag_data["y"], 0
+                tag_data.get("offset_x", 0),
+                tag_data.get("offset_y", 0),
+                tag_data.get("distance", 0),
             )
             status = "success"
         else:
             response_message = "未检测到AprilTag，不发送"
+            status = "info"
+
+    elif vision_data_type == "yolo_target":
+        yolo_data = latest_vision_data.get("yolo_objects")
+        if yolo_data and yolo_data.get("detected"):
+            target = yolo_data.get("primary_target")
+            response_message = current_app.arm_controller.send_yolo_target_offset(
+                target.get("offset_x", 0),
+                target.get("offset_y", 0),
+            )
+            status = "success"
+        else:
+            response_message = "未检测到YOLO目标，不发送"
             status = "info"
 
     else:
@@ -94,7 +107,6 @@ def send_vision_data():
     return jsonify({"status": status, "message": response_message})
 
 
-# ... (小车和系统控制的路由保持不变) ...
 @main_bp.route("/api/send_car_command", methods=["POST"])
 def send_car_command():
     data = request.json
@@ -109,6 +121,19 @@ def send_car_command():
 def get_car_status():
     log = current_app.car_controller.get_received_log()
     return jsonify({"log": log})
+
+
+@main_bp.route("/api/toggle_vision_feature", methods=["POST"])
+def toggle_vision_feature():
+    data = request.json
+    feature = data.get("feature")
+    enabled = data.get("enabled")
+    if feature == "color_block":
+        status = current_app.vision_processor.set_blob_detection_status(enabled)
+        return jsonify(
+            {"status": "success", "message": f"Color block detection set to {status}"}
+        )
+    return jsonify({"status": "error", "message": "Unknown feature"}), 400
 
 
 @main_bp.route("/api/soft_restart", methods=["POST"])

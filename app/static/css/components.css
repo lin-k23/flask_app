@@ -1,29 +1,16 @@
 /* app/static/css/components.css */
-/* --- Reusable UI Components --- */
-
-/* --- Log Box Component --- */
 .log-box {
-    background-color: #333;
-    color: #eee;
+    background-color: #2d2d2d;
+    color: #f1f1f1;
     font-family: "SF Mono", "Consolas", "Menlo", monospace;
     font-size: 0.9em;
     padding: 10px;
     border-radius: 4px;
     overflow-y: auto;
     height: 120px;
+    border: 1px solid #444;
 }
 
-/* .small-log {
-    height: 60px;
-    color: #ccc;
-} */
-
-.log-box p {
-    margin: 0 0 5px 0;
-    word-break: break-all;
-}
-
-/* --- Data Box Component (for Detection Panel) --- */
 .data-box {
     margin-bottom: 15px;
 }
@@ -44,15 +31,16 @@ pre {
     font-family: "SF Mono", "Consolas", "Menlo", monospace;
 }
 
-/* --- Toggle Switch Component --- */
 .switch-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    padding: 10px;
-    background-color: #f0f2f5;
-    border-radius: 6px;
+    padding: 8px 0;
+}
+
+.switch-container:not(:last-child) {
+    border-bottom: 1px solid #f0f2f5;
 }
 
 .switch-container label {
@@ -63,8 +51,8 @@ pre {
 .switch {
     position: relative;
     display: inline-block;
-    width: 60px;
-    height: 34px;
+    width: 50px;
+    height: 28px;
 }
 
 .switch input {
@@ -87,8 +75,8 @@ pre {
 .slider:before {
     position: absolute;
     content: "";
-    height: 26px;
-    width: 26px;
+    height: 20px;
+    width: 20px;
     left: 4px;
     bottom: 4px;
     background-color: white;
@@ -100,11 +88,11 @@ input:checked+.slider {
 }
 
 input:checked+.slider:before {
-    transform: translateX(26px);
+    transform: translateX(22px);
 }
 
 .slider.round {
-    border-radius: 34px;
+    border-radius: 28px;
 }
 
 .slider.round:before {

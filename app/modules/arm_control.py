@@ -110,6 +110,38 @@ class ArmController:
                 print(error_info)
                 return error_info
 
+    # ... (在 send_april_tag_offset 函数之后添加) ...
+    def send_yolo_target_offset(self, offset_x, offset_y, distance=0):
+        """
+        打包并发送YOLO识别到的首要目标数据 (DataType=0x03)。
+        这里的distance暂时作为预留字段。
+        """
+        with self.send_lock:
+            if not self.serial_port:
+                return "错误: 串口不可用"
+
+            print(
+                f"指令发送 -> YOLO Target, 数据: X_Offset={offset_x}, Y_Offset={offset_y}"
+            )
+
+            try:
+                # '>hhh' 表示 3个有符号短整型 (16-bit) in big-endian
+                payload = struct.pack(
+                    ">hhh", int(offset_x), int(offset_y), int(distance)
+                )
+
+                # 创建并发送数据包
+                packet = self._create_packet(0x03, payload)
+                self.serial_port.write(bytes(packet))
+
+                sent_info = f"YOLO: {packet.hex().upper()}"
+                print(f"发送 -> {sent_info}")
+                return sent_info
+            except Exception as e:
+                error_info = f"!!! 打包YOLO数据时出错: {e}"
+                print(error_info)
+                return error_info
+
     def handle_command(self, command_string):
         print(
             f"警告：尝试通过已禁用的 handle_command 发送指令 '{command_string}'。操作已取消。"
