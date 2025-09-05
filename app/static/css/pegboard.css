@@ -1,0 +1,256 @@
+.pegboard-panel {
+    padding: 18px;
+}
+
+#pegboard {
+    --rows: 10;
+    --cols: 15;
+    --gap: 12px;
+    --hole-w: 30px;
+    /* 宽，椭圆 */
+    --hole-h: 18px;
+    /* 高，椭圆 */
+    margin: 16px auto;
+    padding: 18px;
+    border-radius: 14px;
+    border: 1px dashed #d7dbe8;
+    background: radial-gradient(1200px 400px at 50% -200px, #fff, #f1f5ff);
+    display: grid;
+    gap: var(--gap);
+    grid-template-rows: repeat(var(--rows), var(--hole-h));
+    grid-template-columns: repeat(var(--cols), var(--hole-w));
+    width: fit-content;
+}
+
+/* 可点击的孔 */
+.hole {
+    width: var(--hole-w);
+    height: var(--hole-h);
+    border-radius: 12px;
+    background: radial-gradient(90% 90% at 35% 35%, #e7ebf5, #cfd6e9 70%, #bfc8de);
+    box-shadow: inset -2px -2px 4px rgba(0, 0, 0, .15);
+    cursor: pointer;
+    position: relative;
+    transition: transform .1s ease, box-shadow .2s;
+}
+
+.hole:hover {
+    transform: scale(1.06);
+}
+
+.hole.active {
+    box-shadow: 0 0 10px rgba(79, 70, 229, .35);
+}
+
+/* 物品类型上色（可选） */
+.hole[data-t="hook"] {
+    background: radial-gradient(90% 90% at 35% 35%, #ffd9b0, #ffb875 70%, #ffa24a);
+}
+
+.hole[data-t="basket"] {
+    background: radial-gradient(90% 90% at 35% 35%, #bfe3ff, #7cc2ff 70%, #4ea9ff);
+}
+
+.hole[data-t="item"] {
+    background: radial-gradient(90% 90% at 35% 35%, #c6f6d5, #6ee7b7 70%, #34d399);
+}
+
+/* 不可点击的占位格（首/末行两侧 3 个） */
+.spacer {
+    width: var(--hole-w);
+    height: var(--hole-h);
+    border-radius: 12px;
+    background: transparent;
+    pointer-events: none;
+}
+
+/* 工具条 */
+.pegboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.segmented {
+    display: flex;
+    background: #eef2ff;
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+}
+
+.segmented button {
+    border: 0;
+    background: transparent;
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #4338ca;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.segmented button.active {
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(67, 56, 202, .15);
+}
+
+/* 小色块标识 */
+.chip {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.chip-h1 {
+    background: #fb923c;
+}
+
+/* 橙 */
+.chip-h2 {
+    background: #60a5fa;
+}
+
+/* 蓝 */
+.chip-h3 {
+    background: #34d399;
+}
+
+/* 绿 */
+.chip-h4 {
+    background: #a78bfa;
+}
+
+/* 紫 */
+
+/* 板面（保持你现在的10x15、首末行中间9孔布局） */
+#pegboard {
+    --rows: 10;
+    --cols: 15;
+    --gap: 12px;
+    --hole-w: 30px;
+    --hole-h: 18px;
+    margin: 16px auto;
+    padding: 18px;
+    border-radius: 14px;
+    border: 1px dashed #d7dbe8;
+    background: radial-gradient(1200px 400px at 50% -200px, #fff, #f1f5ff);
+    display: grid;
+    gap: var(--gap);
+    grid-template-rows: repeat(var(--rows), var(--hole-h));
+    grid-template-columns: repeat(var(--cols), var(--hole-w));
+    width: fit-content;
+}
+
+.hole {
+    width: var(--hole-w);
+    height: var(--hole-h);
+    border-radius: 12px;
+    background: radial-gradient(90% 90% at 35% 35%, #e7ebf5, #cfd6e9 70%, #bfc8de);
+    box-shadow: inset -2px -2px 4px rgba(0, 0, 0, .15);
+    position: relative;
+    cursor: pointer;
+    transition: transform .1s ease, box-shadow .2s;
+}
+
+.hole:hover {
+    transform: scale(1.06);
+}
+
+.hole.active {
+    box-shadow: 0 0 10px rgba(79, 70, 229, .35);
+}
+
+/* 在孔里显示四种钩子的“图标”——用伪元素画一条/双条/弧形/条块 */
+.hole[data-t="h1"]::after,
+.hole[data-t="h2"]::after,
+.hole[data-t="h3"]::after,
+.hole[data-t="h4"]::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.hole[data-t="h1"]::after {
+    width: 70%;
+    height: 4px;
+    border-radius: 2px;
+    background: #fb923c;
+}
+
+.hole[data-t="h2"]::after {
+    width: 70%;
+    height: 8px;
+    border-radius: 3px;
+    background: linear-gradient(#60a5fa, #3b82f6);
+}
+
+.hole[data-t="h3"]::after {
+    width: 60%;
+    height: 60%;
+    border: 3px solid #34d399;
+    border-radius: 12px;
+    background: transparent;
+}
+
+.hole[data-t="h4"]::after {
+    width: 70%;
+    height: 70%;
+    border-radius: 6px;
+    background: #a78bfa;
+    opacity: .85;
+}
+
+.spacer {
+    width: var(--hole-w);
+    height: var(--hole-h);
+    border-radius: 12px;
+    background: transparent;
+    pointer-events: none;
+}
+
+.pegboard-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #d1d5db;
+    margin-right: 6px;
+    vertical-align: -1px;
+}
+
+.dot-h1 {
+    background: #fb923c;
+}
+
+.dot-h2 {
+    background: #60a5fa;
+}
+
+.dot-h3 {
+    background: #34d399;
+}
+
+.dot-h4 {
+    background: #a78bfa;
+}
