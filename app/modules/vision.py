@@ -8,7 +8,7 @@ import copy
 import json  # 导入json库
 
 try:
-    from maix import camera, image, nn
+    from maix import camera, image, nn, display
 except (ImportError, ModuleNotFoundError):
     print("!!! maix library not found, switching to MOCK mode for development. !!!")
     from .maix_mock import camera, image, nn
@@ -20,6 +20,29 @@ NANOTRACK_MODEL_PATH = "/root/models/nanotrack.mud"
 CONF_THRESHOLD = 0.5
 IOU_THRESHOLD = 0.45
 TEMP_FRAME_PATH = os.path.join(tempfile.gettempdir(), "vision_frame.jpg")
+
+
+# --- [核心修改] 新增内置信息字典 ---
+ORGANS_INFO = {
+    "ORG-2025-0001": {
+        "编号": "ORG-2025-0001",
+        "类型": "结肠类器官",
+        "供体": "DONOR-001",
+        "位置": {"架": "Rack-1", "盒": "Box-01"},
+    },
+    "ORG-2025-0002": {
+        "编号": "ORG-2025-0002",
+        "类型": "肝脏类器官",
+        "供体": "DONOR-002",
+        "位置": {"架": "Rack-2", "盒": "Box-02"},
+    },
+    "ORG-2025-0003": {
+        "编号": "ORG-2025-0003",
+        "类型": "章鱼蛋蛋",
+        "供体": "DONOR-003",
+        "位置": {"架": "Rack-2", "盒": "Box-02"},
+    },
+}
 
 
 # --- 视觉处理器状态定义 ---
@@ -50,6 +73,14 @@ class VisionProcessor:
 
         self.cam = camera.Camera(width, height)
         print(f"Camera Initialized ({width}x{height})")
+
+        # --- [新增] 初始化本地显示屏 ---
+        self.disp = None
+        try:
+            self.disp = display.Display()
+            print("Local display initialized successfully.")
+        except Exception as e:
+            print(f"!!! Failed to initialize local display: {e}")
 
         # --- NanoTrack模型加载 ---
         self.tracker = None
@@ -211,7 +242,13 @@ class VisionProcessor:
                     jpeg_bytes = f.read()
             with self.lock:
                 self.latest_jpeg = jpeg_bytes
-
+                # --- [新增] 将最终图像显示在本地屏幕上 ---
+            if self.disp:
+                try:
+                    self.disp.show(img)
+                except Exception as e:
+                    print(f"!!! Failed to show image on local display: {e}")
+                    self.disp = None  # 出错一次后不再尝试，防止刷屏
             time.sleep(0.05)
 
     def _track_target(self, img):
@@ -241,24 +278,68 @@ class VisionProcessor:
 
     def _detect_qrcodes(self, img):
         qrcodes = img.find_qrcodes()
-        if qrcodes:
-            qr = qrcodes[0]  # 只处理第一个检测到的二维码
-            corners = qr.corners()
-            for i in range(4):
-                p1, p2 = corners[i], corners[(i + 1) % 4]
-                img.draw_line(p1[0], p1[1], p2[0], p2[1], image.COLOR_RED, 2)
+        if not qrcodes:
+            return {"detected": False, "payload": None}
 
-            payload = qr.payload()
-            # 确保 payload 是字符串
+        qr = qrcodes[0]  # 只处理第一个
+        # 绘制边框
+        corners = qr.corners()
+        for i in range(4):
+            img.draw_line(
+                corners[i][0],
+                corners[i][1],
+                corners[(i + 1) % 4][0],
+                corners[(i + 1) % 4][1],
+                image.COLOR_RED,
+            )
+
+        payload = qr.payload()
+        show_info = None  # 用于发送到前端的详细信息
+        display_str = ""  # 用于在本地屏幕上显示的简短信息
+
+        try:
+            if isinstance(payload, bytes):
+                payload = payload.decode("utf-8")
+            data = json.loads(payload)
+            code = data.get("编号")
+            if code and code in ORGANS_INFO:
+                info = ORGANS_INFO[code]
+                show_info = "\n".join(
+                    [
+                        f"编号: {info['编号']}",
+                        f"类型: {info['类型']}",
+                        f"供体: {info['供体']}",
+                        f"位置: {info['位置']}",
+                    ]
+                )
+                display_str = f"{info['编号']} {info['类型']}"
+            else:
+                # 如果不是已知编号的JSON，美化打印
+                show_info = "\n".join(f"{k}: {v}" for k, v in data.items())
+                key, value = next(iter(data.items()))
+                display_str = f"{key}: {value}"
+        except Exception:
+            # 如果不是JSON，则作为普通字符串处理
             if isinstance(payload, bytes):
                 payload = payload.decode("utf-8", errors="replace")
+            if payload in ORGANS_INFO:
+                info = ORGANS_INFO[payload]
+                show_info = "\n".join(
+                    [
+                        f"编号: {info['编号']}",
+                        f"类型: {info['类型']}",
+                        f"供体: {info['供体']}",
+                        f"位置: {info['位置']}",
+                    ]
+                )
+                display_str = f"{info['编号']} {info['类型']}"
+            else:
+                show_info = payload
+                display_str = payload[:10]
 
-            img.draw_string(qr.x(), qr.y() - 15, "QRCode Detected", image.COLOR_RED)
-            return {
-                "detected": True,
-                "payload": payload,
-            }
-        return {"detected": False, "payload": None}
+        img.draw_string(qr.x(), qr.y() - 15, display_str, image.COLOR_RED)
+
+        return {"detected": True, "payload": show_info}
 
     def set_blob_detection_status(self, enabled):
         self.blob_detection_enabled = bool(enabled)

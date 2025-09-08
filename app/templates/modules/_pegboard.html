@@ -1,37 +1,34 @@
-<div class="panel pegboard-panel">
+<div class="grid-item" id="pegboard-module">
     <div class="pegboard-header">
-        <h3>洞洞板可视化</h3>
-
-        <!-- 工具条：4 种钩子 + 橡皮 -->
-        <div class="segmented" id="peg-tools">
-            <button data-type="h1" class="active" title="钩子1">
-                <span class="chip chip-h1"></span> 钩子1
+        <h2>洞洞板可视化</h2>
+        <div class="pegboard-tools" id="peg-tools">
+            <button data-type="h1" class="active" title="钩子1 (快捷键 1)">
+                <span class="chip chip-h1"></span> H1
             </button>
-            <button data-type="h2" title="钩子2">
-                <span class="chip chip-h2"></span> 钩子2
+            <button data-type="h2" title="钩子2 (快捷键 2)">
+                <span class="chip chip-h2"></span> H2
             </button>
-            <button data-type="h3" title="钩子3">
-                <span class="chip chip-h3"></span> 钩子3
+            <button data-type="h3" title="钩子3 (快捷键 3)">
+                <span class="chip chip-h3"></span> H3
             </button>
-            <button data-type="h4" title="钩子4">
-                <span class="chip chip-h4"></span> 钩子4
+            <button data-type="h4" title="钩子4 (快捷键 4)">
+                <span class="chip chip-h4"></span> H4
             </button>
-            <button data-type="erase" title="橡皮">🧽 清除</button>
+            <button data-type="erase" title="清除 (快捷键 0/Backspace)">
+                ⌫
+            </button>
         </div>
     </div>
 
-    <div id="pegboard" aria-label="pegboard"></div>
+    <div class="pegboard-grid-container" id="pegboard"></div>
 
     <div class="pegboard-footer">
-        <span>坐标：<b id="peg-coord">- , -</b></span>
+        <span>坐标: <b id="peg-coord">– , –</b></span>
         <div class="legend">
-            <span><i class="dot dot-h1"></i>钩子1</span>
-            <span><i class="dot dot-h2"></i>钩子2</span>
-            <span><i class="dot dot-h3"></i>钩子3</span>
-            <span><i class="dot dot-h4"></i>钩子4</span>
-            <span><i class="dot"></i>空洞</span>
+            <span><i class="dot dot-h1"></i>H1</span>
+            <span><i class="dot dot-h2"></i>H2</span>
+            <span><i class="dot dot-h3"></i>H3</span>
+            <span><i class="dot dot-h4"></i>H4</span>
         </div>
     </div>
 </div>
-
-<link rel="stylesheet" href="{{ url_for('static', filename='css/pegboard.css') }}">

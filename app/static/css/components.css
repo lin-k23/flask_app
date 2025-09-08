@@ -1,36 +1,49 @@
-/* app/static/css/components.css */
+/* app/static/css/components.css (V2.0 科技风格) */
+
 .log-box {
-    background-color: #2d2d2d;
-    color: #f1f1f1;
-    font-family: "SF Mono", "Consolas", "Menlo", monospace;
-    font-size: 0.9em;
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--text-secondary);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.8em;
     padding: 10px;
     border-radius: 4px;
     overflow-y: auto;
+    /* [核心修改] 增加最小高度以拉长日志框 */
+    min-height: 240px;
     height: 120px;
-    border: 1px solid #444;
+    border: 1px solid var(--panel-border);
+    flex-grow: 1;
+    /* 自动填充剩余空间 */
 }
 
 .data-box {
     margin-bottom: 15px;
 }
 
+.data-box:last-child {
+    margin-bottom: 0;
+}
+
 .data-box h3 {
-    margin: 0 0 5px 0;
-    font-size: 1em;
-    color: #555;
+    margin: 0 0 8px 0;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    font-weight: 400;
 }
 
 pre {
-    background-color: #e8eaf6;
-    color: #1a237e;
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--accent-cyan);
     padding: 10px;
     border-radius: 4px;
     white-space: pre-wrap;
     word-wrap: break-word;
-    font-family: "SF Mono", "Consolas", "Menlo", monospace;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.9em;
+    border: 1px solid var(--panel-border);
 }
 
+/* --- 开关 Switch --- */
 .switch-container {
     display: flex;
     justify-content: space-between;
@@ -40,12 +53,12 @@ pre {
 }
 
 .switch-container:not(:last-child) {
-    border-bottom: 1px solid #f0f2f5;
+    border-bottom: 1px solid var(--panel-border);
 }
 
 .switch-container label {
     font-weight: 500;
-    color: #333;
+    color: var(--text-primary);
 }
 
 .switch {
@@ -68,7 +81,8 @@ pre {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ccc;
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--panel-border);
     transition: .4s;
 }
 
@@ -77,17 +91,19 @@ pre {
     content: "";
     height: 20px;
     width: 20px;
-    left: 4px;
-    bottom: 4px;
-    background-color: white;
+    left: 3px;
+    bottom: 3px;
+    background-color: var(--text-secondary);
     transition: .4s;
 }
 
 input:checked+.slider {
-    background-color: #4CAF50;
+    background-color: var(--accent-cyan);
+    box-shadow: var(--glow-cyan);
 }
 
 input:checked+.slider:before {
+    background-color: var(--bg-dark);
     transform: translateX(22px);
 }
 

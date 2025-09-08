@@ -1,18 +1,20 @@
-// app/static/js/modules/detection.js
+// app/static/js/modules/detection.js (优化后)
 
 export function initDetection() {
-    // 获取所有需要更新数据的UI元素
+    // --- 获取UI元素 ---
     const colorBlockDataEl = document.getElementById('color-block-data');
     const apriltagDataEl = document.getElementById('apriltag-data');
     const yoloDataEl = document.getElementById('yolo-data');
-    const nanotrackDataEl = document.getElementById('nanotrack-data'); // <--- 新增
-    const qrcodeDataEl = document.getElementById('qrcode-data'); // <--- 新增
+    const nanotrackDataEl = document.getElementById('nanotrack-data');
+    const qrcodeDataEl = document.getElementById('qrcode-data');
 
-    // 获取所有功能开关
+    // 新增：获取 NanoTrack 的父容器 panel
+    const nanotrackPanel = document.getElementById('nanotrack-panel');
+
     const blobToggleSwitch = document.getElementById('toggle-blob-switch');
-    const qrcodeToggleSwitch = document.getElementById('toggle-qrcode-switch'); // <--- 新增
+    const qrcodeToggleSwitch = document.getElementById('toggle-qrcode-switch');
 
-    // 统一处理开关事件的函数
+    // --- 开关控制逻辑 (与之前相同) ---
     function setupSwitchListener(switchElement, featureName) {
         switchElement.addEventListener('change', function () {
             const isEnabled = this.checked;
@@ -24,7 +26,6 @@ export function initDetection() {
                 .then(res => res.json())
                 .then(data => {
                     console.log(data.message);
-                    // 根据开关和特性名称更新UI
                     if (featureName === 'color_block') {
                         updateUiState(colorBlockDataEl, isEnabled);
                     } else if (featureName === 'qrcode') {
@@ -34,22 +35,21 @@ export function initDetection() {
         });
     }
 
-    // 设置色块检测和二维码识别的开关
     setupSwitchListener(blobToggleSwitch, 'color_block');
     setupSwitchListener(qrcodeToggleSwitch, 'qrcode');
 
-    // 通用的UI状态更新函数
+    // --- UI状态更新与格式化函数 (与之前相同) ---
     function updateUiState(element, isEnabled, defaultText = '等待数据...') {
         if (isEnabled) {
             element.textContent = defaultText;
-            element.style.opacity = '1';
+            element.parentElement.style.opacity = '1';
         } else {
             element.textContent = '已禁用';
-            element.style.opacity = '0.5';
+            // 将整个父容器 data-box 变灰
+            element.parentElement.style.opacity = '0.5';
         }
     }
 
-    // 美化JSON字符串显示的辅助函数
     function formatJsonPayload(payload) {
         try {
             const data = JSON.parse(payload);
@@ -57,27 +57,25 @@ export function initDetection() {
                 .map(([key, value]) => `${key}: ${value}`)
                 .join('\n');
         } catch (e) {
-            // 如果不是有效的JSON，直接返回原始字符串
             return payload;
         }
     }
 
-    // 主数据获取与渲染函数
+    // --- 主数据获取与渲染函数 (核心修改) ---
     function fetchDetectionData() {
         fetch('/api/detection_data')
             .then(response => response.ok ? response.json() : Promise.reject('Network error'))
             .then(data => {
-                // 更新NanoTrack追踪数据
+                // [核心修改] 动态显示/隐藏 NanoTrack 面板
                 if (data.nanotrack && data.nanotrack.detected) {
                     const track = data.nanotrack;
+                    nanotrackPanel.style.display = 'block'; // 显示面板
                     nanotrackDataEl.textContent = `状态: ${track.status}\n置信度: ${track.score}\nx: ${track.x}, y: ${track.y}, w: ${track.w}, h: ${track.h}`;
-                    nanotrackDataEl.style.color = '#4CAF50'; // 追踪时显示为绿色
                 } else {
-                    nanotrackDataEl.textContent = '未在追踪';
-                    nanotrackDataEl.style.color = 'inherit';
+                    nanotrackPanel.style.display = 'none'; // 隐藏面板
                 }
 
-                // 更新色块数据
+                // 更新色块数据 (检查开关状态)
                 if (blobToggleSwitch.checked) {
                     if (data.color_block && data.color_block.detected) {
                         const cb = data.color_block;
@@ -105,7 +103,7 @@ export function initDetection() {
                     yoloDataEl.textContent = '未检测到目标';
                 }
 
-                // 更新二维码数据
+                // 更新二维码数据 (检查开关状态)
                 if (qrcodeToggleSwitch.checked) {
                     if (data.qrcode && data.qrcode.detected) {
                         qrcodeDataEl.textContent = formatJsonPayload(data.qrcode.payload);
@@ -113,18 +111,11 @@ export function initDetection() {
                         qrcodeDataEl.textContent = '未检测到';
                     }
                 }
-
             })
-            .catch(error => {
-                console.error('获取检测数据失败:', error);
-                // 统一显示API错误
-                [colorBlockDataEl, apriltagDataEl, yoloDataEl, nanotrackDataEl, qrcodeDataEl].forEach(el => {
-                    el.textContent = 'API错误';
-                });
-            });
+            .catch(error => console.error('获取检测数据失败:', error));
     }
 
-    // 初始化UI状态并定时刷新
+    // --- 初始化 ---
     setInterval(fetchDetectionData, 200);
     updateUiState(colorBlockDataEl, blobToggleSwitch.checked);
     updateUiState(qrcodeDataEl, qrcodeToggleSwitch.checked);

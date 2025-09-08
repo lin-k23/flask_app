@@ -1,31 +1,29 @@
-/* app/static/css/panels.css */
+/* app/static/css/panels.css (V3.0 最终合并修正版) */
+
 /* --- Panel: Camera & System --- */
-.panel-camera {
-    align-items: center;
+#camera-wrapper {
+    border: 1px solid var(--panel-border);
+    padding: 4px;
+    border-radius: 4px;
 }
 
 #camera-feed {
-    max-width: 100%;
-    border-radius: 4px;
+    border-radius: 2px;
     background-color: #000;
-    object-fit: contain;
 }
 
-.center-panel-wrapper .panel-detection {
-    border-top: none;
+.main-display-wrapper .panel-camera {
+    padding-bottom: 10px;
+    align-items: center;
+}
+
+.main-display-wrapper .panel-detection {
     margin-top: -20px;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-}
-
-.panel-system-controls h2 {
-    border-bottom: none;
+    border-top: 1px solid var(--panel-border);
 }
 
 .system-buttons {
     display: flex;
-    justify-content: space-around;
     gap: 15px;
     padding-top: 10px;
 }
@@ -35,103 +33,130 @@
     padding: 12px;
     font-size: 1em;
     font-weight: bold;
-    border: none;
-    border-radius: 8px;
-    color: white;
+    border: 1px solid;
+    border-radius: 4px;
+    color: var(--text-primary);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.3), rgba(255, 255, 255, 0.05));
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .system-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .btn-blue {
-    background-color: #3f51b5;
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}
+
+.btn-blue:hover {
+    background-color: var(--accent-blue);
+    color: var(--bg-dark);
+    box-shadow: 0 0 10px var(--accent-blue);
 }
 
 .btn-orange {
-    background-color: #fb8c00;
+    border-color: #ff9800;
+    color: #ff9800;
+}
+
+.btn-orange:hover {
+    background-color: #ff9800;
+    color: var(--bg-dark);
+    box-shadow: 0 0 10px #ff9800;
 }
 
 .btn-red {
-    background-color: #e53935;
+    border-color: var(--accent-magenta);
+    color: var(--accent-magenta);
 }
 
-/* --- Panel: Arm --- */
-.panel-arm {
-    gap: 15px;
+.btn-red:hover {
+    background-color: var(--accent-magenta);
+    color: var(--bg-dark);
+    box-shadow: var(--glow-magenta);
 }
 
-.panel-arm .control-group h4,
-.log-container h4 {
-    text-align: center;
-    margin: 0 0 10px 0;
-    color: #3f51b5;
-    font-size: 1em;
-}
 
-.panel-arm .advanced-controls {
-    margin-top: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-/* --- Panel: Car Control --- */
+/* --- Panel: Arm & Car --- */
+.panel-arm,
 .panel-car-control {
     gap: 15px;
-    color: #3f51b5;
-    text-align: center;
 }
 
-.main-controls {
+.control-group {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
+}
+
+
+.control-group h4,
+.log-container h4 {
+    text-align: center;
+    margin: 0 0 10px 0;
+    color: var(--text-secondary);
+    font-size: 1em;
+    font-weight: 400;
+}
+
+
+/* --- Panel: Car Control --- */
+.main-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
     padding: 10px;
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
 }
 
 .car-manual-controls {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: 15px;
 }
 
 .car-d-pad {
     display: grid;
     grid-template-areas: ". f ." "l s r" ". b .";
-    width: 180px;
-    height: 180px;
+    width: 150px;
+    height: 150px;
     gap: 5px;
 }
 
 .car-btn {
-    font-size: 2em;
-    border: none;
-    border-radius: 12px;
-    background-color: #5c6bc0;
-    color: white;
+    font-size: 1.5em;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
-    display: flex;
-    justify-content: center;
-    align-items: center;
 }
 
 .car-btn:hover {
-    background-color: #3f51b5;
+    background-color: var(--accent-cyan);
+    border-color: var(--accent-cyan);
+    color: var(--bg-dark);
+    box-shadow: var(--glow-cyan);
 }
 
 .car-btn:active {
-    transform: scale(0.92);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    transform: scale(0.95);
+}
+
+.car-btn[data-command="stop"] {
+    color: var(--accent-magenta);
+}
+
+.car-btn[data-command="stop"]:hover {
+    background-color: var(--accent-magenta);
+    border-color: var(--accent-magenta);
+    color: var(--bg-dark);
+    box-shadow: var(--glow-magenta);
 }
 
 .car-btn[data-command="forward"] {
@@ -144,11 +169,6 @@
 
 .car-btn[data-command="stop"] {
     grid-area: s;
-    background-color: #e57373;
-}
-
-.car-btn[data-command="stop"]:hover {
-    background-color: #ef5350;
 }
 
 .car-btn[data-command="right"] {
@@ -159,121 +179,236 @@
     grid-area: b;
 }
 
-.car-side-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    flex-grow: 1;
-}
-
-.speed-control {
-    background-color: #f0f2f5;
-    padding: 15px;
-    border-radius: 8px;
-    text-align: center;
-}
-
-.speed-control label {
-    font-weight: 500;
-    display: block;
-    margin-bottom: 10px;
-}
 
 #car-speed {
-    width: 80%;
-    padding: 10px;
-    font-size: 1.5em;
+    width: 90%;
+    padding: 8px;
+    font-size: 1.2em;
     font-weight: bold;
     text-align: center;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-#car-speed::-webkit-outer-spin-button,
-#car-speed::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-#car-speed {
-    -moz-appearance: textfield;
-    appearance: none;
-}
-
-.car-mode-controls {
-    display: flex;
-    flex-direction: row;
-    gap: 10px;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--text-primary);
 }
 
 .car-mode-btn {
-    padding: 12px;
-    font-size: 1em;
-    font-weight: bold;
-    border: 1px solid #c5cae9;
-    background-color: #f8f9fa;
-    color: #3f51b5;
-    border-radius: 6px;
+    padding: 10px;
+    font-size: 0.9em;
+    font-weight: 500;
+    border: 1px solid var(--panel-border);
+    background-color: transparent;
+    color: var(--text-secondary);
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .car-mode-btn:hover {
-    background-color: #e8eaf6;
-    border-color: #9fa8da;
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+    box-shadow: 0 0 10px var(--accent-blue);
 }
 
-.car-advanced-controls {
+.advanced-controls {
     margin-top: auto;
     display: flex;
     flex-direction: column;
     gap: 15px;
 }
 
-.car-logs {
+
+/* --- Detection Panel Grid --- */
+.panel-detection .detection-grid-layout {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 15px;
+    width: 100%;
 }
 
-.car-logs .log-container h4 {
-    text-align: center;
-    margin-top: 0;
+.panel-detection .data-box.controlled .data-box-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 8px;
-    color: #3f51b5;
+}
+
+.panel-detection .data-box.controlled .data-box-header h3 {
+    margin-bottom: 0;
+}
+
+/* --- [最终修正] Panel: Pegboard --- */
+/* 使用 #pegboard-module 作为根选择器 */
+#pegboard-module {
+    justify-content: space-between;
+}
+
+#pegboard-module .pegboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+#pegboard-module h2 {
+    margin: 0;
+    padding: 0;
+    border: none;
+    text-align: left;
+}
+
+#pegboard-module .pegboard-tools {
+    display: flex;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    padding: 4px;
+    gap: 4px;
+    border: 1px solid var(--panel-border);
+}
+
+#pegboard-module .pegboard-tools button {
+    border: 0;
+    background: transparent;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: 700;
     font-size: 0.9em;
+    cursor: pointer;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: .2s ease;
 }
 
-.log-container .log-box {
-    flex-grow: 1;
-    height: 100px;
+#pegboard-module .pegboard-tools button.active {
+    background: var(--accent-cyan);
+    color: var(--bg-dark);
+    text-shadow: none;
+    box-shadow: var(--glow-cyan);
 }
 
-.vision-feature-controls {
-    border: 1px solid #e0e0e0;
+#pegboard-module .pegboard-grid-container {
+    --rows: 8;
+    --cols: 15;
+    --hole-w: 18px;
+    --hole-h: 30px;
+    margin: 16px auto;
+    padding: 18px;
     border-radius: 8px;
-    padding: 5px 15px;
-    margin-bottom: 20px;
+    border: 1px solid var(--panel-border);
+    background: rgba(0, 0, 0, 0.2);
+    display: grid;
+    row-gap: 18px;
+    column-gap: 8px;
+    grid-template-rows: repeat(var(--rows), var(--hole-h));
+    grid-template-columns: repeat(var(--cols), var(--hole-w));
+    width: fit-content;
+    box-sizing: content-box;
 }
 
-/* app/static/css/panels.css (新增样式) */
-
-/* 移除摄像头面板的下边框和圆角 */
-.main-display-wrapper .panel-camera {
-    border-bottom: none;
-    margin-bottom: -20px;
-    /* 负边距让它们贴合 */
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-    padding-bottom: 10px;
+#pegboard-module .hole {
+    width: var(--hole-w);
+    height: var(--hole-h);
+    border-radius: 12px;
+    background-color: rgba(0, 245, 195, 0.15);
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    transition: all .2s ease;
+    position: relative;
 }
 
-/* 移除检测面板的上边框和圆角 */
-.main-display-wrapper .panel-detection {
-    border-top: none;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    /* 保留下方阴影 */
+#pegboard-module .hole:hover {
+    background-color: rgba(0, 245, 195, 0.35);
+    transform: scale(1.05);
+}
+
+#pegboard-module .hole.active::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#pegboard-module .hole.h1::after {
+    width: 70%;
+    height: 4px;
+    border-radius: 2px;
+    background: #fb923c;
+    box-shadow: 0 0 8px #fb923c;
+}
+
+#pegboard-module .hole.h2::after {
+    width: 70%;
+    height: 8px;
+    border-radius: 3px;
+    background: #60a5fa;
+    box-shadow: 0 0 8px #60a5fa;
+}
+
+#pegboard-module .hole.h3::after {
+    width: 60%;
+    height: 60%;
+    border-radius: 12px;
+    border: 3px solid #34d399;
+    background: transparent;
+    filter: drop-shadow(0 0 5px #34d399);
+}
+
+#pegboard-module .hole.h4::after {
+    width: 70%;
+    height: 70%;
+    border-radius: 6px;
+    background: #a78bfa;
+    box-shadow: 0 0 8px #a78bfa;
+}
+
+#pegboard-module .pegboard-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+    width: 100%;
+}
+
+#pegboard-module .legend {
+    display: flex;
+    gap: 14px;
+}
+
+#pegboard-module .chip {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+}
+
+#pegboard-module .dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: -1px;
+}
+
+#pegboard-module .chip-h1,
+#pegboard-module .dot-h1 {
+    background: #fb923c;
+}
+
+#pegboard-module .chip-h2,
+#pegboard-module .dot-h2 {
+    background: #60a5fa;
+}
+
+#pegboard-module .chip-h3,
+#pegboard-module .dot-h3 {
+    background: #34d399;
+}
+
+#pegboard-module .chip-h4,
+#pegboard-module .dot-h4 {
+    background: #a78bfa;
 }

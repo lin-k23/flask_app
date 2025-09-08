@@ -4,7 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MaixPy 集成控制面板</title>
+    <title>MaixPy 集成控制面板 V3.0 Final</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/panels.css') }}">
@@ -19,8 +23,10 @@
 
         <div class="control-column">
             {% include 'modules/_system.html' %}
-            {% include 'modules/_car.html' %}
-            {% include 'modules/_arm.html' %}
+            <div class="side-by-side-container">
+                {% include 'modules/_car.html' %}
+                {% include 'modules/_arm.html' %}
+            </div>
         </div>
 
         <div class="display-column">
