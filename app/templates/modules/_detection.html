@@ -7,6 +7,18 @@
                 <span class="slider round"></span>
             </label>
         </div>
+        <div class="switch-container">
+            <label for="toggle-qrcode-switch">启用二维码识别</label>
+            <label class="switch">
+                <input type="checkbox" id="toggle-qrcode-switch" checked>
+                <span class="slider round"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="data-box">
+        <h3>动态追踪坐标 (NanoTrack)</h3>
+        <pre id="nanotrack-data">未在追踪</pre>
     </div>
     <div class="data-box">
         <h3>色块坐标</h3>
@@ -19,5 +31,9 @@
     <div class="data-box">
         <h3>YOLOv5 目标检测</h3>
         <pre id="yolo-data">等待模型加载...</pre>
+    </div>
+    <div class="data-box">
+        <h3>二维码信息</h3>
+        <pre id="qrcode-data">等待数据...</pre>
     </div>
 </div>

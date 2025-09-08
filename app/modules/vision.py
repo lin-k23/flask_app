@@ -5,6 +5,7 @@ import tempfile
 import os
 import math
 import copy
+import json  # 导入json库
 
 try:
     from maix import camera, image, nn
@@ -21,7 +22,7 @@ IOU_THRESHOLD = 0.45
 TEMP_FRAME_PATH = os.path.join(tempfile.gettempdir(), "vision_frame.jpg")
 
 
-# --- 新增：视觉处理器状态定义 ---
+# --- 视觉处理器状态定义 ---
 class VisionState:
     IDLE = 0
     PENDING_INIT = 1
@@ -31,7 +32,7 @@ class VisionState:
 
 class VisionProcessor:
     def __init__(self, width=320, height=240):
-        # --- 沿用您最初的YOLOv5和摄像头初始化逻辑 ---
+        # --- YOLOv5和摄像头初始化 ---
         self.detector = None
         try:
             model_to_load = (
@@ -47,12 +48,10 @@ class VisionProcessor:
         except Exception as e:
             print(f"!!! Failed to load YOLOv5 model: {e}")
 
-        # 摄像头初始化一次
-        # 使用默认的RGB格式
         self.cam = camera.Camera(width, height)
         print(f"Camera Initialized ({width}x{height})")
 
-        # --- 新增NanoTrack模型加载 ---
+        # --- NanoTrack模型加载 ---
         self.tracker = None
         try:
             if os.path.exists(NANOTRACK_MODEL_PATH):
@@ -61,16 +60,17 @@ class VisionProcessor:
         except Exception as e:
             print(f"!!! Failed to load NanoTrack model: {e}")
 
-        # --- 沿用您最初的其他变量定义 ---
+        # --- 其他变量定义 ---
         self.center_x = width // 2
         self.center_y = height // 2
         self.blob_detection_enabled = True
+        self.qrcode_detection_enabled = True  # <--- 新增：二维码识别开关
         self.TH_RED = [[0, 80, 40, 80, 10, 80]]
         self.BLOB_PIXELS_THRESHOLD = 150
         self.APRILTAG_FAMILIES = image.ApriltagFamilies.TAG36H11
         self.APRILTAG_DISTANCE_FACTOR_K = 20.0
 
-        # --- 新增：状态管理变量 ---
+        # --- 状态管理变量 ---
         self.state = VisionState.IDLE
         self.init_rect = None
         self.init_start_time = 0
@@ -81,18 +81,19 @@ class VisionProcessor:
             "color_block": {"detected": False},
             "apriltag": {"detected": False},
             "yolo_objects": {"detected": False, "objects": []},
-            "nanotrack": {"detected": False, "status": "IDLE"},  # 新增nanotrack状态
+            "nanotrack": {"detected": False, "status": "IDLE"},
+            "qrcode": {"detected": False, "payload": None},  # <--- 新增：二维码数据
         }
         self.lock = threading.Lock()
         self.stopped = False
         self.thread = threading.Thread(target=self.run, daemon=True)
 
-    # --- 新增：在一个安全的独立线程中尝试初始化追踪器 ---
     def _initialize_tracker_task(self, img_copy, x, y, w, h):
         try:
             print(
                 f"--> [Thread] Attempting to initialize tracker with rect: {(x, y, w, h)}"
             )
+            # 在单独的线程中初始化，避免阻塞主循环
             self.tracker.init(img_copy, x, y, w, h)
             with self.lock:
                 if self.state == VisionState.INITIALIZING:
@@ -105,13 +106,12 @@ class VisionProcessor:
                 f"!!! [Thread] Tracker initialization failed (likely due to format mismatch): {e}"
             )
             with self.lock:
-                self.state = VisionState.IDLE  # 失败后安全返回IDLE状态
+                self.state = VisionState.IDLE
                 self.latest_data["nanotrack"] = {
                     "detected": False,
                     "status": "INIT_FAILED",
                 }
 
-    # --- 新增：启动和停止追踪的接口 ---
     def start_tracking(self, x, y, w, h):
         if not self.tracker:
             return False
@@ -136,7 +136,6 @@ class VisionProcessor:
     def stop(self):
         self.stopped = True
 
-    # --- 修改：run()函数以包含状态管理 ---
     def run(self):
         while not self.stopped:
             img = self.cam.read()
@@ -146,7 +145,6 @@ class VisionProcessor:
 
             current_state = self.state
 
-            # --- 状态机管理追踪流程 ---
             if current_state == VisionState.PENDING_INIT:
                 if self.init_rect:
                     x, y, w, h = self.init_rect
@@ -166,22 +164,22 @@ class VisionProcessor:
                     print(f"!!! Tracker initialization timed out! Resetting state.")
                     self.stop_tracking()
 
-            # --- 根据状态执行不同的检测 ---
             if self.state == VisionState.TRACKING:
-                # 追踪时，停止其他检测
                 track_data = self._track_target(img)
                 with self.lock:
+                    # 追踪时，禁用其他检测，并只更新追踪数据
                     self.latest_data.update(
                         {
                             "yolo_objects": {"detected": False, "objects": []},
                             "color_block": {"detected": False},
                             "apriltag": {"detected": False},
+                            "qrcode": {"detected": False, "payload": None},
                             "nanotrack": track_data,
                         }
                     )
 
             elif self.state == VisionState.IDLE:
-                # 在IDLE状态下，恢复您原有的检测功能
+                # 在空闲状态下，执行所有启用的检测
                 yolo_data = self._detect_yolo(img)
                 blob_data = (
                     self._detect_blobs(img)
@@ -189,17 +187,23 @@ class VisionProcessor:
                     else {"detected": False}
                 )
                 apriltag_data = self._detect_apriltags(img)
+                qrcode_data = (  # <--- 新增：调用二维码检测
+                    self._detect_qrcodes(img)
+                    if self.qrcode_detection_enabled
+                    else {"detected": False, "payload": None}
+                )
                 with self.lock:
                     self.latest_data.update(
                         {
                             "yolo_objects": yolo_data,
                             "color_block": blob_data,
                             "apriltag": apriltag_data,
+                            "qrcode": qrcode_data,
                             "nanotrack": {"detected": False, "status": "IDLE"},
                         }
                     )
 
-            # 沿用您原有的图像保存和数据更新逻辑
+            # 保存图像并更新JPEG数据
             err = img.save(TEMP_FRAME_PATH, quality=90)
             jpeg_bytes = None
             if err == 0:
@@ -210,7 +214,6 @@ class VisionProcessor:
 
             time.sleep(0.05)
 
-    # --- 新增：追踪函数 ---
     def _track_target(self, img):
         if not self.tracker:
             return {"detected": False, "status": "ERROR"}
@@ -221,6 +224,7 @@ class VisionProcessor:
                 img.draw_string(
                     r.x, r.y - 15, f"Tracking: {r.score:.2f}", image.COLOR_RED
                 )
+                # <--- 核心修改：在追踪数据中添加坐标信息 ---
                 return {
                     "detected": True,
                     "status": "TRACKING",
@@ -232,15 +236,42 @@ class VisionProcessor:
                 }
         except Exception as e:
             print(f"!!! Tracking failed (likely format mismatch): {e}")
-            self.stop_tracking()  # 追踪出错，自动停止
+            self.stop_tracking()
         return {"detected": False, "status": "LOST"}
 
-    # --- 以下是您最初的、未经修改的检测函数 ---
+    def _detect_qrcodes(self, img):
+        qrcodes = img.find_qrcodes()
+        if qrcodes:
+            qr = qrcodes[0]  # 只处理第一个检测到的二维码
+            corners = qr.corners()
+            for i in range(4):
+                p1, p2 = corners[i], corners[(i + 1) % 4]
+                img.draw_line(p1[0], p1[1], p2[0], p2[1], image.COLOR_RED, 2)
+
+            payload = qr.payload()
+            # 确保 payload 是字符串
+            if isinstance(payload, bytes):
+                payload = payload.decode("utf-8", errors="replace")
+
+            img.draw_string(qr.x(), qr.y() - 15, "QRCode Detected", image.COLOR_RED)
+            return {
+                "detected": True,
+                "payload": payload,
+            }
+        return {"detected": False, "payload": None}
+
     def set_blob_detection_status(self, enabled):
         self.blob_detection_enabled = bool(enabled)
         status = "enabled" if self.blob_detection_enabled else "disabled"
         print(f"Color block detection has been {status}.")
         return self.blob_detection_enabled
+
+    # <--- 新增：设置二维码检测状态的函数 ---
+    def set_qrcode_detection_status(self, enabled):
+        self.qrcode_detection_enabled = bool(enabled)
+        status = "enabled" if self.qrcode_detection_enabled else "disabled"
+        print(f"QRCode detection has been {status}.")
+        return self.qrcode_detection_enabled
 
     def _detect_yolo(self, img):
         if not self.detector:
@@ -314,7 +345,6 @@ class VisionProcessor:
         if tags:
             tag = tags[0]
             cx, cy = tag.cx(), tag.cy()
-            # 修正：在这里定义 offset_x 和 offset_y
             offset_x = cx - self.center_x
             offset_y = cy - self.center_y
             real_distance = int(

@@ -1,3 +1,4 @@
+# app/routes/main.py
 from flask import Blueprint, render_template, Response, jsonify, request, current_app
 import time
 import os
@@ -31,7 +32,6 @@ def video_feed():
     )
 
 
-# (确保 get_detection_data 函数是这个简洁的版本)
 @main_bp.route("/api/detection_data", methods=["GET"])
 def get_detection_data():
     data = current_app.vision_processor.get_latest_data()
@@ -133,6 +133,14 @@ def toggle_vision_feature():
         return jsonify(
             {"status": "success", "message": f"Color block detection set to {status}"}
         )
+
+    # <--- 新增：处理二维码开关的逻辑 ---
+    elif feature == "qrcode":
+        status = current_app.vision_processor.set_qrcode_detection_status(enabled)
+        return jsonify(
+            {"status": "success", "message": f"QRCode detection set to {status}"}
+        )
+
     return jsonify({"status": "error", "message": "Unknown feature"}), 400
 
 
@@ -156,7 +164,7 @@ def shutdown():
 @main_bp.route("/api/start_tracking", methods=["POST"])
 def start_tracking():
     data = request.json
-    rect = data.get("rect")  # rect = {'x': val, 'y': val, 'w': val, 'h': val}
+    rect = data.get("rect")
     if not rect:
         return jsonify(status="error", message="No rectangle provided"), 400
 
