@@ -1,6 +1,9 @@
 export function initPegboard() {
-    const rows = 10, cols = 15;
-    const isHole = (r, c) => (r === 0 || r === rows - 1) ? (c >= 3 && c <= 11) : (c >= 0 && c < cols);
+    // 改为 15x8 的阵列
+    const rows = 8, cols = 15;
+
+    // 所有位置都是孔，因此始终返回 true
+    const isHole = (r, c) => true;
 
     // 状态：null = 无孔；0 = 空；'h1' | 'h2' | 'h3' | 'h4'
     let board = Array.from({ length: rows }, (_, r) =>
@@ -49,12 +52,7 @@ export function initPegboard() {
         root.innerHTML = "";
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
-                if (!isHole(r, c)) {
-                    const s = document.createElement("div");
-                    s.className = "spacer";
-                    root.appendChild(s);
-                    continue;
-                }
+                // 因为 isHole 总是 true, 所以不再需要 spacer 元素
                 const h = document.createElement("div");
                 h.className = "hole";
                 h.dataset.r = r; h.dataset.c = c;
@@ -88,7 +86,7 @@ export function initPegboard() {
         }).catch(console.error);
     }
 
-    // 初始化：兼容老数据(0/1或数字1~4)
+    // 初始化
     fetch("/api/pegboard")
         .then(res => res.ok ? res.json() : Promise.reject(res.status))
         .then(data => {

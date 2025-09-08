@@ -151,3 +151,25 @@ def shutdown():
     time.sleep(1)
     os.kill(os.getpid(), signal.SIGINT)
     return jsonify({"status": "success", "message": "服务正在关闭..."})
+
+
+@main_bp.route("/api/start_tracking", methods=["POST"])
+def start_tracking():
+    data = request.json
+    rect = data.get("rect")  # rect = {'x': val, 'y': val, 'w': val, 'h': val}
+    if not rect:
+        return jsonify(status="error", message="No rectangle provided"), 400
+
+    x, y, w, h = rect.get("x"), rect.get("y"), rect.get("w"), rect.get("h")
+
+    success = current_app.vision_processor.start_tracking(x, y, w, h)
+    if success:
+        return jsonify(status="success", message="Tracking started")
+    else:
+        return jsonify(status="error", message="Failed to start tracker"), 500
+
+
+@main_bp.route("/api/stop_tracking", methods=["POST"])
+def stop_tracking():
+    current_app.vision_processor.stop_tracking()
+    return jsonify(status="success", message="Tracking stopped")

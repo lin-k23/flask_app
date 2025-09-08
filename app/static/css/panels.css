@@ -256,3 +256,24 @@
     padding: 5px 15px;
     margin-bottom: 20px;
 }
+
+/* app/static/css/panels.css (新增样式) */
+
+/* 移除摄像头面板的下边框和圆角 */
+.main-display-wrapper .panel-camera {
+    border-bottom: none;
+    margin-bottom: -20px;
+    /* 负边距让它们贴合 */
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    padding-bottom: 10px;
+}
+
+/* 移除检测面板的上边框和圆角 */
+.main-display-wrapper .panel-detection {
+    border-top: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    /* 保留下方阴影 */
+}

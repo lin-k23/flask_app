@@ -28,3 +28,5 @@ instance/
 
 # MaixPy specific (if any)
 # e.g., build artifacts or local configs
+qrcode.py
+test.py

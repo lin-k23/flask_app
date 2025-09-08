@@ -13,14 +13,43 @@ header {
     color: #1a237e;
 }
 
-.three-column-layout {
+/* app/static/css/base.css (修改后) */
+
+/* 移除或注释掉 .three-column-layout */
+/*
+.three-column-layout { ... }
+*/
+
+.two-column-layout {
     display: grid;
-    grid-template-columns: 1fr 1.5fr 1fr;
+    /* 左边栏固定宽度或比例较小，右边栏占据剩余空间 */
+    grid-template-columns: 420px 1fr;
     gap: 20px;
     align-items: start;
-    /* 顶部对齐，修复拉伸问题 */
-    max-width: 1600px;
+    max-width: 1800px;
     margin: 0 auto;
+}
+
+.control-column,
+.display-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    /* 面板之间的间距 */
+}
+
+/* 让右侧的视觉模块更紧凑 */
+.main-display-wrapper {
+    display: flex;
+    flex-direction: column;
+    /* 移除内部间距，让摄像头和数据面板紧贴 */
+}
+
+/* 响应式设计: 在窄屏幕上变为单列 */
+@media (max-width: 1200px) {
+    .two-column-layout {
+        grid-template-columns: 1fr;
+    }
 }
 
 .center-panel-wrapper {

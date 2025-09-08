@@ -1,4 +1,7 @@
 <div class="grid-item panel-camera">
     <h2>视觉核心 (实时画面)</h2>
-    <img id="camera-feed" src="{{ url_for('main.video_feed') }}" alt="摄像头画面">
+    <div id="camera-wrapper" style="position: relative; line-height: 0; display: inline-block;">
+        <img id="camera-feed" src="{{ url_for('main.video_feed') }}" alt="摄像头画面"
+            style="max-width: 100%; display: block;">
+    </div>
 </div>

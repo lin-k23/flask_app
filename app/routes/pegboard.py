@@ -1,16 +1,18 @@
 from flask import Blueprint, jsonify, request
 
 pegboard_bp = Blueprint("pegboard", __name__)
-ROWS, COLS = 10, 15
+
+# 改为 15x8 的阵列
+ROWS, COLS = 8, 15
 
 
 def is_hole(r, c):
-    if r in (0, ROWS - 1):
-        return 3 <= c <= 11
-    return 0 <= c < COLS
+    # 所有位置都是孔，因此始终返回 True
+    return True
 
 
 # None 无孔；0 空；'h1'/'h2'/'h3'/'h4' 占用
+# is_hole 始终为 True，所以 board 会被初始化为一个填满 0 的 15x8 矩阵
 board = [[(0 if is_hole(r, c) else None) for c in range(COLS)] for r in range(ROWS)]
 TYPES = {"h1", "h2", "h3", "h4"}
 
@@ -26,6 +28,7 @@ def update_board():
     r, c = int(d.get("row", -1)), int(d.get("col", -1))
     state = d.get("state", 0)
 
+    # 边界检查仍然有效
     if not (0 <= r < ROWS and 0 <= c < COLS and is_hole(r, c)):
         return jsonify(ok=False, error="invalid position"), 400
 

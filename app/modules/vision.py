@@ -4,7 +4,7 @@ import time
 import tempfile
 import os
 import math
-import copy  # <--- 1. 导入 copy 模块
+import copy
 
 try:
     from maix import camera, image, nn
@@ -12,15 +12,26 @@ except (ImportError, ModuleNotFoundError):
     print("!!! maix library not found, switching to MOCK mode for development. !!!")
     from .maix_mock import camera, image, nn
 
+# --- 常量定义 ---
 MODEL_PATH = "model_234836.mud"
 FALLBACK_MODEL_PATH = "/root/models/maixhub/234836/model_234836.mud"
+NANOTRACK_MODEL_PATH = "/root/models/nanotrack.mud"
 CONF_THRESHOLD = 0.5
 IOU_THRESHOLD = 0.45
 TEMP_FRAME_PATH = os.path.join(tempfile.gettempdir(), "vision_frame.jpg")
 
 
+# --- 新增：视觉处理器状态定义 ---
+class VisionState:
+    IDLE = 0
+    PENDING_INIT = 1
+    INITIALIZING = 2
+    TRACKING = 3
+
+
 class VisionProcessor:
     def __init__(self, width=320, height=240):
+        # --- 沿用您最初的YOLOv5和摄像头初始化逻辑 ---
         self.detector = None
         try:
             model_to_load = (
@@ -36,9 +47,21 @@ class VisionProcessor:
         except Exception as e:
             print(f"!!! Failed to load YOLOv5 model: {e}")
 
+        # 摄像头初始化一次
+        # 使用默认的RGB格式
         self.cam = camera.Camera(width, height)
         print(f"Camera Initialized ({width}x{height})")
 
+        # --- 新增NanoTrack模型加载 ---
+        self.tracker = None
+        try:
+            if os.path.exists(NANOTRACK_MODEL_PATH):
+                self.tracker = nn.NanoTrack(model=NANOTRACK_MODEL_PATH)
+                print(f"NanoTrack model loaded.")
+        except Exception as e:
+            print(f"!!! Failed to load NanoTrack model: {e}")
+
+        # --- 沿用您最初的其他变量定义 ---
         self.center_x = width // 2
         self.center_y = height // 2
         self.blob_detection_enabled = True
@@ -47,21 +70,65 @@ class VisionProcessor:
         self.APRILTAG_FAMILIES = image.ApriltagFamilies.TAG36H11
         self.APRILTAG_DISTANCE_FACTOR_K = 20.0
 
+        # --- 新增：状态管理变量 ---
+        self.state = VisionState.IDLE
+        self.init_rect = None
+        self.init_start_time = 0
+        self.INIT_TIMEOUT = 3.0
+
         self.latest_jpeg = None
         self.latest_data = {
             "color_block": {"detected": False},
             "apriltag": {"detected": False},
             "yolo_objects": {"detected": False, "objects": []},
+            "nanotrack": {"detected": False, "status": "IDLE"},  # 新增nanotrack状态
         }
         self.lock = threading.Lock()
         self.stopped = False
         self.thread = threading.Thread(target=self.run, daemon=True)
 
-    def set_blob_detection_status(self, enabled):
-        self.blob_detection_enabled = bool(enabled)
-        status = "enabled" if self.blob_detection_enabled else "disabled"
-        print(f"Color block detection has been {status}.")
-        return self.blob_detection_enabled
+    # --- 新增：在一个安全的独立线程中尝试初始化追踪器 ---
+    def _initialize_tracker_task(self, img_copy, x, y, w, h):
+        try:
+            print(
+                f"--> [Thread] Attempting to initialize tracker with rect: {(x, y, w, h)}"
+            )
+            self.tracker.init(img_copy, x, y, w, h)
+            with self.lock:
+                if self.state == VisionState.INITIALIZING:
+                    self.state = VisionState.TRACKING
+                    print(
+                        "<-- [Thread] Tracker initialized successfully. State set to TRACKING."
+                    )
+        except Exception as e:
+            print(
+                f"!!! [Thread] Tracker initialization failed (likely due to format mismatch): {e}"
+            )
+            with self.lock:
+                self.state = VisionState.IDLE  # 失败后安全返回IDLE状态
+                self.latest_data["nanotrack"] = {
+                    "detected": False,
+                    "status": "INIT_FAILED",
+                }
+
+    # --- 新增：启动和停止追踪的接口 ---
+    def start_tracking(self, x, y, w, h):
+        if not self.tracker:
+            return False
+        with self.lock:
+            self.init_rect = (x, y, w, h)
+            self.state = VisionState.PENDING_INIT
+            self.latest_data["nanotrack"] = {
+                "detected": False,
+                "status": "PENDING_INIT",
+            }
+        return True
+
+    def stop_tracking(self):
+        with self.lock:
+            self.state = VisionState.IDLE
+            self.init_rect = None
+        print("Tracking stopped. State reset to IDLE.")
 
     def start(self):
         self.thread.start()
@@ -69,6 +136,7 @@ class VisionProcessor:
     def stop(self):
         self.stopped = True
 
+    # --- 修改：run()函数以包含状态管理 ---
     def run(self):
         while not self.stopped:
             img = self.cam.read()
@@ -76,50 +144,123 @@ class VisionProcessor:
                 time.sleep(0.01)
                 continue
 
-            yolo_data = self._detect_yolo(img)
-            blob_data = (
-                self._detect_blobs(img)
-                if self.blob_detection_enabled
-                else {"detected": False}
-            )
-            apriltag_data = self._detect_apriltags(img)
+            current_state = self.state
 
+            # --- 状态机管理追踪流程 ---
+            if current_state == VisionState.PENDING_INIT:
+                if self.init_rect:
+                    x, y, w, h = self.init_rect
+                    init_thread = threading.Thread(
+                        target=self._initialize_tracker_task,
+                        args=(img, x, y, w, h),
+                    )
+                    init_thread.daemon = True
+                    init_thread.start()
+                    with self.lock:
+                        self.state = VisionState.INITIALIZING
+                        self.init_start_time = time.time()
+                        self.init_rect = None
+
+            elif current_state == VisionState.INITIALIZING:
+                if time.time() - self.init_start_time > self.INIT_TIMEOUT:
+                    print(f"!!! Tracker initialization timed out! Resetting state.")
+                    self.stop_tracking()
+
+            # --- 根据状态执行不同的检测 ---
+            if self.state == VisionState.TRACKING:
+                # 追踪时，停止其他检测
+                track_data = self._track_target(img)
+                with self.lock:
+                    self.latest_data.update(
+                        {
+                            "yolo_objects": {"detected": False, "objects": []},
+                            "color_block": {"detected": False},
+                            "apriltag": {"detected": False},
+                            "nanotrack": track_data,
+                        }
+                    )
+
+            elif self.state == VisionState.IDLE:
+                # 在IDLE状态下，恢复您原有的检测功能
+                yolo_data = self._detect_yolo(img)
+                blob_data = (
+                    self._detect_blobs(img)
+                    if self.blob_detection_enabled
+                    else {"detected": False}
+                )
+                apriltag_data = self._detect_apriltags(img)
+                with self.lock:
+                    self.latest_data.update(
+                        {
+                            "yolo_objects": yolo_data,
+                            "color_block": blob_data,
+                            "apriltag": apriltag_data,
+                            "nanotrack": {"detected": False, "status": "IDLE"},
+                        }
+                    )
+
+            # 沿用您原有的图像保存和数据更新逻辑
             err = img.save(TEMP_FRAME_PATH, quality=90)
             jpeg_bytes = None
             if err == 0:
                 with open(TEMP_FRAME_PATH, "rb") as f:
                     jpeg_bytes = f.read()
-
             with self.lock:
                 self.latest_jpeg = jpeg_bytes
-                self.latest_data["color_block"] = blob_data
-                self.latest_data["apriltag"] = apriltag_data
-                self.latest_data["yolo_objects"] = yolo_data
+
             time.sleep(0.05)
+
+    # --- 新增：追踪函数 ---
+    def _track_target(self, img):
+        if not self.tracker:
+            return {"detected": False, "status": "ERROR"}
+        try:
+            r = self.tracker.track(img)
+            if r.w > 0 and r.h > 0:
+                img.draw_rect(r.x, r.y, r.w, r.h, image.COLOR_RED, 3)
+                img.draw_string(
+                    r.x, r.y - 15, f"Tracking: {r.score:.2f}", image.COLOR_RED
+                )
+                return {
+                    "detected": True,
+                    "status": "TRACKING",
+                    "x": r.x,
+                    "y": r.y,
+                    "w": r.w,
+                    "h": r.h,
+                    "score": round(r.score, 2),
+                }
+        except Exception as e:
+            print(f"!!! Tracking failed (likely format mismatch): {e}")
+            self.stop_tracking()  # 追踪出错，自动停止
+        return {"detected": False, "status": "LOST"}
+
+    # --- 以下是您最初的、未经修改的检测函数 ---
+    def set_blob_detection_status(self, enabled):
+        self.blob_detection_enabled = bool(enabled)
+        status = "enabled" if self.blob_detection_enabled else "disabled"
+        print(f"Color block detection has been {status}.")
+        return self.blob_detection_enabled
 
     def _detect_yolo(self, img):
         if not self.detector:
             return {"detected": False, "objects": []}
-
         try:
             objs = self.detector.detect(
                 img, conf_th=CONF_THRESHOLD, iou_th=IOU_THRESHOLD
             )
         except Exception:
-            # 如果检测失败，返回安全默认值
             return {"detected": False, "objects": []}
 
         formatted_objects = []
         for obj in objs:
-            center_x = obj.x + obj.w // 2
-            center_y = obj.y + obj.h // 2
+            center_x, center_y = obj.x + obj.w // 2, obj.y + obj.h // 2
             offset_x = center_x - self.center_x
             offset_y = center_y - self.center_y
             img.draw_rect(obj.x, obj.y, obj.w, obj.h, image.COLOR_RED, 2)
             msg = f"{self.detector.labels[obj.class_id]}: {obj.score:.2f}"
             img.draw_string(obj.x, obj.y - 15, msg, image.COLOR_RED)
             img.draw_cross(center_x, center_y, image.COLOR_GREEN)
-
             formatted_objects.append(
                 {
                     "x": int(obj.x),
@@ -137,8 +278,6 @@ class VisionProcessor:
             )
         if formatted_objects:
             formatted_objects.sort(key=lambda o: o["area"], reverse=True)
-            # --- [核心修正] ---
-            # 使用 copy() 来创建一个新的字典，而不是直接引用，以确保数据类型安全
             primary_target = formatted_objects[0].copy()
             return {
                 "detected": True,
@@ -154,7 +293,7 @@ class VisionProcessor:
         if blobs:
             largest_blob = max(blobs, key=lambda b: b.area())
             corners = largest_blob.mini_corners()
-            rotation_rad, rotation_deg = calculate_angle_from_corners(corners)
+            _, rotation_deg = calculate_angle_from_corners(corners)
             offset_x = largest_blob.cx() - self.center_x
             offset_y = largest_blob.cy() - self.center_y
             for i in range(4):
@@ -175,6 +314,7 @@ class VisionProcessor:
         if tags:
             tag = tags[0]
             cx, cy = tag.cx(), tag.cy()
+            # 修正：在这里定义 offset_x 和 offset_y
             offset_x = cx - self.center_x
             offset_y = cy - self.center_y
             real_distance = int(
@@ -201,7 +341,6 @@ class VisionProcessor:
 
     def get_latest_data(self):
         with self.lock:
-            # 返回数据的深拷贝，确保线程安全
             return copy.deepcopy(self.latest_data)
 
 

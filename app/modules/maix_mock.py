@@ -177,6 +177,9 @@ class MockNN:
         print(f"--- [MOCK] nn.YOLOv5 instantiated but will do nothing. ---")
         return None  # 返回None, vision.py中的self.detector将为None
 
+    def NanoTrack(self, model):
+        return MockNanoTrack(model)
+
 
 class Maix:
     """统一的 Maix 模块模拟入口。"""
@@ -200,12 +203,43 @@ class Maix:
     def YOLOv5(self, model):
         return MockNN().YOLOv5(model)
 
+    def NanoTrack(self, model):
+        return MockNN().NanoTrack(model)
+
     @property
     def ApriltagFamilies(self):
         class Families:
             TAG36H11 = "TAG36H11"
 
         return Families
+
+
+class MockTrackResult:
+    """模拟 tracker.track 返回的结果"""
+
+    def __init__(self, x, y, w, h, score):
+        self.x, self.y, self.w, self.h = x, y, w, h
+        self.score = score
+
+
+class MockNanoTrack:
+    """模拟的 NanoTrack 类"""
+
+    def __init__(self, model):
+        self.target = (0, 0, 0, 0)
+        print(f"--- [MOCK] nn.NanoTrack instantiated with model {model}. ---")
+
+    def init(self, img, x, y, w, h):
+        self.target = (x, y, w, h)
+        print(f"--- [MOCK] NanoTrack initialized with rect: {(x, y, w, h)}")
+
+    def track(self, img):
+        # 模拟目标轻微移动
+        x, y, w, h = self.target
+        new_x = x + math.sin(time.time() * 2) * 5
+        new_y = y + math.cos(time.time() * 2) * 5
+        self.target = (new_x, new_y, w, h)
+        return MockTrackResult(int(new_x), int(new_y), w, h, 0.95)
 
 
 # --- 最终导出的模拟实例 ---

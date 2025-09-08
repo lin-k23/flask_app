@@ -15,18 +15,21 @@
         <h1>MaixPy 集成控制面板</h1>
     </header>
 
-    <main class="three-column-layout">
+    <main class="two-column-layout">
 
-        {% include 'modules/_arm.html' %}
-
-        <div class="center-panel-wrapper">
-            {% include 'modules/_pegboard.html' %}
-            {% include 'modules/_camera.html' %}
-            {% include 'modules/_detection.html' %}
+        <div class="control-column">
             {% include 'modules/_system.html' %}
+            {% include 'modules/_car.html' %}
+            {% include 'modules/_arm.html' %}
         </div>
 
-        {% include 'modules/_car.html' %}
+        <div class="display-column">
+            <div class="main-display-wrapper">
+                {% include 'modules/_camera.html' %}
+                {% include 'modules/_detection.html' %}
+            </div>
+            {% include 'modules/_pegboard.html' %}
+        </div>
 
     </main>
 
