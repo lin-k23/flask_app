@@ -123,6 +123,13 @@ def get_car_status():
     return jsonify({"log": log})
 
 
+# --- [新增] 创建一个新的API路由来获取发送日志 ---
+@main_bp.route("/api/car_sent_log", methods=["GET"])
+def get_car_sent_log():
+    log = current_app.car_controller.get_sent_log()
+    return jsonify({"log": log})
+
+
 @main_bp.route("/api/toggle_vision_feature", methods=["POST"])
 def toggle_vision_feature():
     data = request.json

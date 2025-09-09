@@ -1,4 +1,4 @@
-/* app/static/css/components.css (V2.0 科技风格) */
+/* app/static/css/components.css (V3.0 Inspired by Reference) */
 
 .log-box {
     background-color: rgba(0, 0, 0, 0.3);
@@ -8,12 +8,10 @@
     padding: 10px;
     border-radius: 4px;
     overflow-y: auto;
-    /* [核心修改] 增加最小高度以拉长日志框 */
     min-height: 240px;
     height: 120px;
     border: 1px solid var(--panel-border);
     flex-grow: 1;
-    /* 自动填充剩余空间 */
 }
 
 .data-box {
@@ -34,6 +32,7 @@
 pre {
     background-color: rgba(0, 0, 0, 0.3);
     color: var(--accent-cyan);
+    /* Keep cyan for data to make it pop */
     padding: 10px;
     border-radius: 4px;
     white-space: pre-wrap;
@@ -43,7 +42,7 @@ pre {
     border: 1px solid var(--panel-border);
 }
 
-/* --- 开关 Switch --- */
+/* --- Switch --- */
 .switch-container {
     display: flex;
     justify-content: space-between;
@@ -97,9 +96,10 @@ pre {
     transition: .4s;
 }
 
+/* Change from cyan/magenta to the new blue */
 input:checked+.slider {
-    background-color: var(--accent-cyan);
-    box-shadow: var(--glow-cyan);
+    background-color: var(--accent-blue);
+    box-shadow: var(--glow-blue);
 }
 
 input:checked+.slider:before {

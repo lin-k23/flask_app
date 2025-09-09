@@ -3,7 +3,7 @@
 export function initCarControls() {
     // --- 获取所有需要交互的UI元素 ---
     const controlButtons = document.querySelectorAll('.car-btn');
-    const modeButtons = document.querySelectorAll('.car-mode-btn'); // <--- 确保选中了模式按钮
+    const modeButtons = document.querySelectorAll('.car-mode-btn');
     const carLogReceivedEl = document.getElementById('car-log-received');
     const carSpeedInput = document.getElementById('car-speed');
     const carLogSentEl = document.getElementById('car-log-sent');
@@ -18,17 +18,17 @@ export function initCarControls() {
         });
     });
 
-    // 2. [核心修正] 为模式切换按钮添加点击事件
+    // 2. 为模式切换按钮添加点击事件
     modeButtons.forEach(button => {
         button.addEventListener('click', () => {
-            const command = button.dataset.command; // 例如: "{auto_track_start}"
+            const command = button.dataset.command;
             sendCarCommand(command);
         });
     });
 
-    // --- 核心发送逻辑 (被所有按钮调用) ---
+    // 3. 核心发送逻辑 (现在只负责发送)
     function sendCarCommand(command) {
-        logToCarSent(command);
+        // [核心修改] 不再调用 logToCarSent, 后端会自动记录
         fetch('/api/send_car_command', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -39,29 +39,41 @@ export function initCarControls() {
             .catch(error => console.error('发送小车指令失败:', error));
     }
 
-    // --- 日志与状态更新 ---
-    function logToCarSent(message) {
-        const p = document.createElement('p');
-        p.textContent = `> ${message}`;
-        // 将新日志插入到最前面，而不是追加到末尾
-        carLogSentEl.insertBefore(p, carLogSentEl.firstChild);
-    }
-
+    // 4. 日志与状态更新
     function fetchCarStatus() {
         fetch('/api/car_status')
             .then(response => response.json())
             .then(data => {
-                if (data.log && data.log.length > 0) {
-                    carLogReceivedEl.innerHTML = '';
-                    data.log.forEach(msg => {
+                if (data.log) { // 检查log是否存在
+                    carLogReceivedEl.innerHTML = ''; // 先清空
+                    data.log.slice().reverse().forEach(msg => { // 反转数组，让最新的在最上面
                         const p = document.createElement('p');
                         p.textContent = `< ${msg}`;
                         carLogReceivedEl.appendChild(p);
                     });
-                    carLogReceivedEl.scrollTop = carLogReceivedEl.scrollHeight;
                 }
             })
-            .catch(error => console.error('获取小车状态失败:', error));
+            .catch(error => console.error('获取小车接收日志失败:', error));
     }
-    setInterval(fetchCarStatus, 2000);
+
+    // --- [新增] 新的函数，用于从后端获取发送日志 ---
+    function fetchCarSentLog() {
+        fetch('/api/car_sent_log')
+            .then(response => response.json())
+            .then(data => {
+                if (data.log) { // 检查log是否存在
+                    carLogSentEl.innerHTML = ''; // 先清空
+                    data.log.slice().reverse().forEach(msg => { // 反转数组，让最新的在最上面
+                        const p = document.createElement('p');
+                        p.textContent = `> ${msg}`;
+                        carLogSentEl.appendChild(p);
+                    });
+                }
+            })
+            .catch(error => console.error('获取小车发送日志失败:', error));
+    }
+
+    // --- [修改] 设置定时器，同时获取接收和发送的日志 ---
+    setInterval(fetchCarStatus, 1000); // 周期可以调整，比如1秒
+    setInterval(fetchCarSentLog, 1000);
 }

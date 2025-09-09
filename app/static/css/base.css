@@ -1,23 +1,21 @@
-/* app/static/css/base.css (V2.4 Final Polish) */
+/* app/static/css/base.css (V3.0 Inspired by Reference) */
 
-/* Defines a brighter, more presentation-friendly color palette */
 :root {
-    --bg-dark: #23273a;
-    /* Brighter main background */
-    --panel-bg: #303554;
-    /* Brighter panel background */
-    --panel-border: rgba(0, 245, 195, 0.35);
-    /* More visible border */
+    --bg-dark: #0d1a33;
+    /* Darker, more saturated blue background */
+    --panel-bg: #14244d;
+    /* Panel background from reference */
+    --accent-blue: #00aaff;
+    /* A vibrant light blue for highlights */
     --accent-cyan: #00f5c3;
-    --accent-magenta: #ff2ea8;
-    /* A slightly softer magenta */
-    --accent-blue: #4d9eff;
-    --text-primary: #f0f4ff;
-    /* Brighter primary text */
-    --text-secondary: #b6bfd8;
-    /* Brighter secondary text */
-    --glow-cyan: 0 0 6px var(--accent-cyan), 0 0 12px var(--accent-cyan);
-    --glow-magenta: 0 0 6px var(--accent-magenta), 0 0 12px var(--accent-magenta);
+    /* Kept for secondary highlights */
+    --panel-border: rgba(0, 170, 255, 0.4);
+    /* Border color based on accent blue */
+    --text-primary: #e0e8ff;
+    /* Slightly bluish white text */
+    --text-secondary: #a0b0d0;
+    /* Softer secondary text */
+    --glow-blue: 0 0 6px var(--accent-blue), 0 0 12px var(--accent-blue);
 }
 
 body {
@@ -26,19 +24,23 @@ body {
     padding: 20px;
     background-color: var(--bg-dark);
     color: var(--text-primary);
+    /* Using a subtler grid pattern */
     background-image:
-        linear-gradient(rgba(0, 245, 195, .08) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 245, 195, .08) 1px, transparent 1px);
-    background-size: 25px 25px;
-    /* Slightly larger grid */
+        linear-gradient(rgba(0, 170, 255, .05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 170, 255, .05) 1px, transparent 1px);
+    background-size: 30px 30px;
 }
 
 header {
     text-align: center;
     margin-bottom: 25px;
-    font-size: 1.5em;
-    color: var(--accent-cyan);
-    text-shadow: var(--glow-cyan);
+    padding: 15px;
+    font-size: 1.6em;
+    color: var(--text-primary);
+    background-color: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    text-shadow: 0 0 8px var(--accent-blue);
 }
 
 .two-column-layout {
@@ -64,12 +66,13 @@ header {
     align-items: stretch;
 }
 
+/* This is the main style for all panels, inspired by the reference "cards" */
 .grid-item {
     background-color: var(--panel-bg);
     border: 1px solid var(--panel-border);
     border-radius: 8px;
     padding: 20px;
-    box-shadow: 0 0 25px rgba(26, 28, 44, 0.6);
+    box-shadow: 0 0 25px rgba(13, 26, 51, 0.5), inset 0 0 15px rgba(0, 170, 255, 0.1);
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -84,6 +87,8 @@ header {
     padding-bottom: 10px;
     text-align: center;
     font-weight: 500;
+    font-size: 1.2em;
+    /* Slightly smaller header */
 }
 
 @media (max-width: 1400px) {

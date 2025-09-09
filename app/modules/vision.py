@@ -97,7 +97,8 @@ class VisionProcessor:
         self.blob_detection_enabled = True
         self.qrcode_detection_enabled = True  # <--- 新增：二维码识别开关
         self.TH_RED = [[0, 80, 40, 80, 10, 80]]
-        self.BLOB_PIXELS_THRESHOLD = 150
+        # self.TH_RED = [[0, 100, -30, 30, 70, 127]]
+        self.BLOB_PIXELS_THRESHOLD = 100
         self.APRILTAG_FAMILIES = image.ApriltagFamilies.TAG36H11
         self.APRILTAG_DISTANCE_FACTOR_K = 20.0
 
