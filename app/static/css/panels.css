@@ -400,3 +400,20 @@
 #pegboard-module .dot-h4 {
     background: #a78bfa;
 }
+
+/* 在 app/static/css/panels.css 文件末尾添加 */
+
+.data-box-header .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.control-select {
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--text-primary);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: 'Roboto Mono', monospace;
+}

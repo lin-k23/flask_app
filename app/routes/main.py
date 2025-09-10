@@ -44,14 +44,12 @@ def get_arm_status():
     return jsonify({"log": log})
 
 
-# --- [新增] 创建一个新的API路由来获取机械臂发送日志 ---
 @main_bp.route("/api/arm_sent_log", methods=["GET"])
 def get_arm_sent_log():
     log = current_app.arm_controller.get_sent_log()
     return jsonify({"log": log})
 
 
-# --- [新增] 获取和控制视觉数据流状态的API ---
 @main_bp.route("/api/arm_vision_stream_status", methods=["GET"])
 def get_arm_vision_stream_status():
     status = current_app.arm_controller.get_vision_stream_status()
@@ -71,14 +69,6 @@ def toggle_arm_vision_stream():
     return jsonify({"status": "success", "message": message})
 
 
-@main_bp.route("/api/send_arm_command", methods=["POST"])
-def send_arm_command():
-    command_data = request.json
-    command = command_data.get("command")
-    response_message = current_app.arm_controller.handle_command(command)
-    return jsonify({"status": "info", "message": response_message})
-
-
 @main_bp.route("/api/send_vision_data", methods=["POST"])
 def send_vision_data():
     req_data = request.json
@@ -95,6 +85,7 @@ def send_vision_data():
                     blob_data.get("offset_x", 0),
                     blob_data.get("offset_y", 0),
                     blob_data.get("angle", 0),
+                    blob_data.get("color_index", 0),
                 )
             )
             status = "success"
@@ -113,19 +104,6 @@ def send_vision_data():
             status = "success"
         else:
             response_message = "未检测到AprilTag，不发送"
-            status = "info"
-
-    elif vision_data_type == "yolo_target":
-        yolo_data = latest_vision_data.get("yolo_objects")
-        if yolo_data and yolo_data.get("detected"):
-            target = yolo_data.get("primary_target")
-            response_message = current_app.arm_controller.send_yolo_target_offset(
-                target.get("offset_x", 0),
-                target.get("offset_y", 0),
-            )
-            status = "success"
-        else:
-            response_message = "未检测到YOLO目标，不发送"
             status = "info"
 
     else:
@@ -150,11 +128,24 @@ def get_car_status():
     return jsonify({"log": log})
 
 
-# --- [新增] 创建一个新的API路由来获取发送日志 ---
 @main_bp.route("/api/car_sent_log", methods=["GET"])
 def get_car_sent_log():
     log = current_app.car_controller.get_sent_log()
     return jsonify({"log": log})
+
+
+@main_bp.route("/api/set_blob_color", methods=["POST"])
+def set_blob_color():
+    data = request.json
+    color_key = data.get("color")
+    if not color_key:
+        return jsonify(status="error", message="No color provided"), 400
+
+    success, message = current_app.vision_processor.set_blob_color_key(color_key)
+    if success:
+        return jsonify(status="success", message=message)
+    else:
+        return jsonify(status="error", message=message), 400
 
 
 @main_bp.route("/api/toggle_vision_feature", methods=["POST"])
@@ -168,7 +159,6 @@ def toggle_vision_feature():
             {"status": "success", "message": f"Color block detection set to {status}"}
         )
 
-    # <--- 新增：处理二维码开关的逻辑 ---
     elif feature == "qrcode":
         status = current_app.vision_processor.set_qrcode_detection_status(enabled)
         return jsonify(
@@ -226,7 +216,6 @@ def send_pegboard_target():
     if row is None or col is None:
         return jsonify(status="error", message="无效的行列号"), 400
 
-    # 直接调用 arm_controller 的新方法发送行列号
     response_message = current_app.arm_controller.send_pegboard_target(row, col)
 
     return jsonify({"status": "success", "message": response_message})

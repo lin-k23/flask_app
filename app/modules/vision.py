@@ -5,7 +5,7 @@ import tempfile
 import os
 import math
 import copy
-import json  # 导入json库
+import json
 
 try:
     from maix import camera, image, nn, display
@@ -14,15 +14,18 @@ except (ImportError, ModuleNotFoundError):
     from .maix_mock import camera, image, nn
 
 # --- 常量定义 ---
-MODEL_PATH = "model_234836.mud"
-FALLBACK_MODEL_PATH = "/root/models/maixhub/234836/model_234836.mud"
 NANOTRACK_MODEL_PATH = "/root/models/nanotrack.mud"
-CONF_THRESHOLD = 0.5
-IOU_THRESHOLD = 0.45
 TEMP_FRAME_PATH = os.path.join(tempfile.gettempdir(), "vision_frame.jpg")
 
+# --- 颜色阈值字典 ---
+COLOR_THRESHOLDS = {
+    "orange": ([[0, 80, 40, 60, 40, 80]], 2),
+    "blue": ([[0, 80, -10, 10, -55, -30]], 0),
+    "yellow": ([[0, 80, -15, 15, 50, 80]], 1),
+    "purple": ([[28, 68, 12, 52, -80, -40]], 3),
+}
 
-# --- [核心修改] 新增内置信息字典 ---
+# --- 内置信息字典 ---
 ORGANS_INFO = {
     "ORG-2025-0001": {
         "编号": "ORG-2025-0001",
@@ -55,27 +58,13 @@ class VisionState:
 
 class VisionProcessor:
     def __init__(self, width=320, height=240):
-        # --- [核心修改] 暂时禁用YOLOv5模型加载 ---
+        # --- [核心修改] YOLO已完全移除 ---
         self.detector = None
-        print("!!! YOLOv5 detection is temporarily disabled. !!!")
-        # try:
-        #     model_to_load = (
-        #         MODEL_PATH if os.path.exists(MODEL_PATH) else FALLBACK_MODEL_PATH
-        #     )
-        #     if os.path.exists(model_to_load):
-        #         self.detector = nn.YOLOv5(model=model_to_load)
-        #         width, height = (
-        #             self.detector.input_width(),
-        #             self.detector.input_height(),
-        #         )
-        #         print(f"YOLOv5 model loaded. Input size: {width}x{height}")
-        # except Exception as e:
-        #     print(f"!!! Failed to load YOLOv5 model: {e}")
+        print("--- YOLOv5 detection is permanently disabled. ---")
 
         self.cam = camera.Camera(width, height)
         print(f"Camera Initialized ({width}x{height})")
 
-        # --- [新增] 初始化本地显示屏 ---
         self.disp = None
         try:
             self.disp = display.Display()
@@ -83,7 +72,6 @@ class VisionProcessor:
         except Exception as e:
             print(f"!!! Failed to initialize local display: {e}")
 
-        # --- NanoTrack模型加载 ---
         self.tracker = None
         try:
             if os.path.exists(NANOTRACK_MODEL_PATH):
@@ -92,17 +80,15 @@ class VisionProcessor:
         except Exception as e:
             print(f"!!! Failed to load NanoTrack model: {e}")
 
-        # --- 其他变量定义 ---
         self.center_x = width // 2
         self.center_y = height // 2
         self.blob_detection_enabled = True
-        self.qrcode_detection_enabled = True  # <--- 新增：二维码识别开关
-        self.TH_RED = [[0, 80, 40, 80, 10, 80]]
+        self.qrcode_detection_enabled = True
+        self.active_blob_color_key = "red"
         self.BLOB_PIXELS_THRESHOLD = 150
         self.APRILTAG_FAMILIES = image.ApriltagFamilies.TAG36H11
         self.APRILTAG_DISTANCE_FACTOR_K = 20.0
 
-        # --- 状态管理变量 ---
         self.state = VisionState.IDLE
         self.init_rect = None
         self.init_start_time = 0
@@ -112,9 +98,8 @@ class VisionProcessor:
         self.latest_data = {
             "color_block": {"detected": False},
             "apriltag": {"detected": False},
-            "yolo_objects": {"detected": False, "objects": []},
             "nanotrack": {"detected": False, "status": "IDLE"},
-            "qrcode": {"detected": False, "payload": None},  # <--- 新增：二维码数据
+            "qrcode": {"detected": False, "payload": None},
         }
         self.lock = threading.Lock()
         self.stopped = False
@@ -122,21 +107,11 @@ class VisionProcessor:
 
     def _initialize_tracker_task(self, img_copy, x, y, w, h):
         try:
-            print(
-                f"--> [Thread] Attempting to initialize tracker with rect: {(x, y, w, h)}"
-            )
-            # 在单独的线程中初始化，避免阻塞主循环
             self.tracker.init(img_copy, x, y, w, h)
             with self.lock:
                 if self.state == VisionState.INITIALIZING:
                     self.state = VisionState.TRACKING
-                    print(
-                        "<-- [Thread] Tracker initialized successfully. State set to TRACKING."
-                    )
         except Exception as e:
-            print(
-                f"!!! [Thread] Tracker initialization failed (likely due to format mismatch): {e}"
-            )
             with self.lock:
                 self.state = VisionState.IDLE
                 self.latest_data["nanotrack"] = {
@@ -193,33 +168,27 @@ class VisionProcessor:
 
             elif current_state == VisionState.INITIALIZING:
                 if time.time() - self.init_start_time > self.INIT_TIMEOUT:
-                    print(f"!!! Tracker initialization timed out! Resetting state.")
                     self.stop_tracking()
 
             if self.state == VisionState.TRACKING:
                 track_data = self._track_target(img)
                 with self.lock:
-                    # 追踪时，禁用其他检测，并只更新追踪数据
                     self.latest_data.update(
                         {
-                            "yolo_objects": {"detected": False, "objects": []},
                             "color_block": {"detected": False},
                             "apriltag": {"detected": False},
                             "qrcode": {"detected": False, "payload": None},
                             "nanotrack": track_data,
                         }
                     )
-
             elif self.state == VisionState.IDLE:
-                # 在空闲状态下，执行所有启用的检测
-                yolo_data = self._detect_yolo(img)
                 blob_data = (
                     self._detect_blobs(img)
                     if self.blob_detection_enabled
                     else {"detected": False}
                 )
                 apriltag_data = self._detect_apriltags(img)
-                qrcode_data = (  # <--- 新增：调用二维码检测
+                qrcode_data = (
                     self._detect_qrcodes(img)
                     if self.qrcode_detection_enabled
                     else {"detected": False, "payload": None}
@@ -227,7 +196,6 @@ class VisionProcessor:
                 with self.lock:
                     self.latest_data.update(
                         {
-                            "yolo_objects": yolo_data,
                             "color_block": blob_data,
                             "apriltag": apriltag_data,
                             "qrcode": qrcode_data,
@@ -235,7 +203,6 @@ class VisionProcessor:
                         }
                     )
 
-            # 保存图像并更新JPEG数据
             err = img.save(TEMP_FRAME_PATH, quality=90)
             jpeg_bytes = None
             if err == 0:
@@ -243,13 +210,11 @@ class VisionProcessor:
                     jpeg_bytes = f.read()
             with self.lock:
                 self.latest_jpeg = jpeg_bytes
-                # --- [新增] 将最终图像显示在本地屏幕上 ---
             if self.disp:
                 try:
                     self.disp.show(img)
                 except Exception as e:
-                    print(f"!!! Failed to show image on local display: {e}")
-                    self.disp = None  # 出错一次后不再尝试，防止刷屏
+                    self.disp = None
             time.sleep(0.05)
 
     def _track_target(self, img):
@@ -262,7 +227,6 @@ class VisionProcessor:
                 img.draw_string(
                     r.x, r.y - 15, f"Tracking: {r.score:.2f}", image.COLOR_RED
                 )
-                # <--- 核心修改：在追踪数据中添加坐标信息 ---
                 return {
                     "detected": True,
                     "status": "TRACKING",
@@ -273,7 +237,6 @@ class VisionProcessor:
                     "score": round(r.score, 2),
                 }
         except Exception as e:
-            print(f"!!! Tracking failed (likely format mismatch): {e}")
             self.stop_tracking()
         return {"detected": False, "status": "LOST"}
 
@@ -282,8 +245,7 @@ class VisionProcessor:
         if not qrcodes:
             return {"detected": False, "payload": None}
 
-        qr = qrcodes[0]  # 只处理第一个
-        # 绘制边框
+        qr = qrcodes[0]
         corners = qr.corners()
         for i in range(4):
             img.draw_line(
@@ -295,8 +257,8 @@ class VisionProcessor:
             )
 
         payload = qr.payload()
-        show_info = None  # 用于发送到前端的详细信息
-        display_str = ""  # 用于在本地屏幕上显示的简短信息
+        show_info = None
+        display_str = ""
 
         try:
             if isinstance(payload, bytes):
@@ -315,12 +277,10 @@ class VisionProcessor:
                 )
                 display_str = f"{info['编号']} {info['类型']}"
             else:
-                # 如果不是已知编号的JSON，美化打印
                 show_info = "\n".join(f"{k}: {v}" for k, v in data.items())
                 key, value = next(iter(data.items()))
                 display_str = f"{key}: {value}"
         except Exception:
-            # 如果不是JSON，则作为普通字符串处理
             if isinstance(payload, bytes):
                 payload = payload.decode("utf-8", errors="replace")
             if payload in ORGANS_INFO:
@@ -344,64 +304,28 @@ class VisionProcessor:
 
     def set_blob_detection_status(self, enabled):
         self.blob_detection_enabled = bool(enabled)
-        status = "enabled" if self.blob_detection_enabled else "disabled"
-        print(f"Color block detection has been {status}.")
         return self.blob_detection_enabled
 
-    # <--- 新增：设置二维码检测状态的函数 ---
     def set_qrcode_detection_status(self, enabled):
         self.qrcode_detection_enabled = bool(enabled)
-        status = "enabled" if self.qrcode_detection_enabled else "disabled"
-        print(f"QRCode detection has been {status}.")
         return self.qrcode_detection_enabled
 
-    def _detect_yolo(self, img):
-        if not self.detector:
-            return {"detected": False, "objects": []}
-        try:
-            objs = self.detector.detect(
-                img, conf_th=CONF_THRESHOLD, iou_th=IOU_THRESHOLD
-            )
-        except Exception:
-            return {"detected": False, "objects": []}
-
-        formatted_objects = []
-        for obj in objs:
-            center_x, center_y = obj.x + obj.w // 2, obj.y + obj.h // 2
-            offset_x = center_x - self.center_x
-            offset_y = center_y - self.center_y
-            img.draw_rect(obj.x, obj.y, obj.w, obj.h, image.COLOR_RED, 2)
-            msg = f"{self.detector.labels[obj.class_id]}: {obj.score:.2f}"
-            img.draw_string(obj.x, obj.y - 15, msg, image.COLOR_RED)
-            img.draw_cross(center_x, center_y, image.COLOR_GREEN)
-            formatted_objects.append(
-                {
-                    "x": int(obj.x),
-                    "y": int(obj.y),
-                    "w": int(obj.w),
-                    "h": int(obj.h),
-                    "center_x": int(center_x),
-                    "center_y": int(center_y),
-                    "offset_x": int(offset_x),
-                    "offset_y": int(offset_y),
-                    "label": str(self.detector.labels[obj.class_id]),
-                    "score": float(obj.score),
-                    "area": int(obj.w * obj.h),
-                }
-            )
-        if formatted_objects:
-            formatted_objects.sort(key=lambda o: o["area"], reverse=True)
-            primary_target = formatted_objects[0].copy()
-            return {
-                "detected": True,
-                "objects": formatted_objects,
-                "primary_target": primary_target,
-            }
-        return {"detected": False, "objects": []}
+    def set_blob_color_key(self, color_key):
+        if color_key in COLOR_THRESHOLDS:
+            self.active_blob_color_key = color_key
+            return True, f"Color set to {color_key}"
+        else:
+            return False, f"Invalid color: {color_key}"
 
     def _detect_blobs(self, img):
+        thresholds, color_index = COLOR_THRESHOLDS.get(
+            self.active_blob_color_key, (None, -1)
+        )
+        if not thresholds:
+            return {"detected": False}
+
         blobs = img.find_blobs(
-            self.TH_RED, pixels_threshold=self.BLOB_PIXELS_THRESHOLD, merge=True
+            thresholds, pixels_threshold=self.BLOB_PIXELS_THRESHOLD, merge=True
         )
         if blobs:
             largest_blob = max(blobs, key=lambda b: b.area())
@@ -419,6 +343,8 @@ class VisionProcessor:
                 "h": int(largest_blob.h()),
                 "angle": float(rotation_deg),
                 "detected": True,
+                "color_name": self.active_blob_color_key,
+                "color_index": color_index,
             }
         return {"detected": False}
 

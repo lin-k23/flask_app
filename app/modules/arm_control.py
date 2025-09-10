@@ -1,4 +1,4 @@
-# app/modules/arm_control.py (已添加自启动测试)
+# app/modules/arm_control.py
 import time
 import threading
 import collections
@@ -33,24 +33,14 @@ class ArmController:
         except Exception as e:
             print(f"!!! Failed to initialize arm controller on {port}: {e}")
 
-        # --- [新增] 启动时运行的简单测试 ---
         print("--- [TEST] Scheduling arm string test in 5 seconds. ---")
-        # 启动一个5秒后执行的定时器，调用 _run_startup_test 方法
         threading.Timer(5.0, self._run_startup_test).start()
-        # --- [新增结束] ---
 
-    # --- [新增] 用于执行启动测试的私有方法 ---
     def _run_startup_test(self):
-        """这是一个在启动5秒后执行的简单测试函数"""
         print("--- [TEST] Running startup test: sending string command to arm. ---")
         self.send_string_command_with_protocol("SYSTEM_CHECK")
 
-    # --- [新增] 专用于发送字符串指令的通用函数 ---
     def send_string_command_with_protocol(self, command_string):
-        """
-        将任何字符串封装到协议(DataType=0x10)中并发送。
-        这个函数不包含启动视觉流等额外逻辑，非常适合通用指令。
-        """
         with self.send_lock:
             if not self.serial_port:
                 return "错误: 串口不可用"
@@ -82,6 +72,7 @@ class ArmController:
                         blob_data.get("offset_x", 0),
                         blob_data.get("offset_y", 0),
                         blob_data.get("angle", 0),
+                        blob_data.get("color_index", 0),
                     )
                 tag_data = latest_data.get("apriltag")
                 if tag_data and tag_data.get("detected"):
@@ -189,15 +180,22 @@ class ArmController:
             self.serial_port.write(bytes(packet))
         return log_message
 
-    def send_arm_offset_and_angle_bulk(self, offset_x, offset_y, angle):
+    def send_arm_offset_and_angle_bulk(self, offset_x, offset_y, angle, color_index):
         with self.send_lock:
             if not self.serial_port:
                 return "错误: 串口不可用"
             try:
-                payload = struct.pack(">hhh", int(offset_x), int(offset_y), int(angle))
+                payload = struct.pack(
+                    ">hhhh",
+                    int(offset_x),
+                    int(offset_y),
+                    int(angle),
+                    int(color_index),
+                )
                 packet = self._create_packet(0x01, payload)
                 return self._log_and_send(
-                    f"色块: X:{offset_x}, Y:{offset_y}, A:{int(angle)}", packet
+                    f"色块: X:{offset_x}, Y:{offset_y}, A:{int(angle)}, C:{color_index}",
+                    packet,
                 )
             except Exception as e:
                 return f"!!! 打包色块数据时出错: {e}"
@@ -216,19 +214,6 @@ class ArmController:
                 )
             except Exception as e:
                 return f"!!! 打包AprilTag数据时出错: {e}"
-
-    def send_yolo_target_offset(self, offset_x, offset_y, distance=0):
-        with self.send_lock:
-            if not self.serial_port:
-                return "错误: 串口不可用"
-            try:
-                payload = struct.pack(
-                    ">hhh", int(offset_x), int(offset_y), int(distance)
-                )
-                packet = self._create_packet(0x03, payload)
-                return self._log_and_send(f"YOLO: X:{offset_x}, Y:{offset_y}", packet)
-            except Exception as e:
-                return f"!!! 打包YOLO数据时出错: {e}"
 
     def send_pegboard_target(self, row, col, reserved=0):
         with self.send_lock:

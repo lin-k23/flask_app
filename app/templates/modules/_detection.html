@@ -1,11 +1,6 @@
 <div class="grid-item panel-detection">
     <div class="detection-grid-layout">
 
-        <div class="data-box yolo-box">
-            <h3>YOLOv5 目标检测</h3>
-            <pre id="yolo-data">等待模型加载...</pre>
-        </div>
-
         <div class="data-box" id="nanotrack-panel" style="display: none;">
             <h3>动态追踪 (NanoTrack)</h3>
             <pre id="nanotrack-data"></pre>
@@ -25,10 +20,18 @@
         <div class="data-box controlled">
             <div class="data-box-header">
                 <h3>色块坐标</h3>
-                <label class="switch">
-                    <input type="checkbox" id="toggle-blob-switch" checked>
-                    <span class="slider round"></span>
-                </label>
+                <div class="header-controls">
+                    <select id="blob-color-select" class="control-select">
+                        <option value="red">orange</option>
+                        <option value="green">purple</option>
+                        <option value="blue">blue</option>
+                        <option value="yellow">yellow</option>
+                    </select>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-blob-switch" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
             </div>
             <pre id="color-block-data">等待数据...</pre>
         </div>

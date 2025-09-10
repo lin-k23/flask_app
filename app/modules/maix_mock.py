@@ -58,7 +58,6 @@ class MockAprilTag:
 
 # --- 模拟 MaixPy 的核心类 ---
 class MockImage:
-    # ... (这个类的内容保持不变) ...
     def __init__(self, width, height):
         self.width, self.height = width, height
         self.img = Image.new("RGB", (width, height), color="darkgray")
@@ -67,20 +66,51 @@ class MockImage:
         self.ApriltagFamilies = type("Families", (), {"TAG36H11": "TAG36H11"})
         self.blob_center = (width / 2, height / 2)
         self.tag_center = (width / 4, height / 4)
+        # --- [新增] 模拟颜色循环 ---
+        self.mock_blob_color_cycle = ["red", "green", "blue", "yellow"]
+        self.current_mock_color = "red"
 
     def _update_object_positions(self):
         t = time.time()
         self.blob_center = (
-            self.width / 2 + math.sin(t) * 50,
-            self.height / 2 + math.cos(t) * 50,
+            self.width / 2 + math.sin(t * 0.8) * 50,
+            self.height / 2 + math.cos(t * 0.8) * 50,
         )
         self.tag_center = (
             self.width / 2 + math.sin(t * 0.7) * 80,
             self.height / 2 - math.cos(t * 0.7) * 60,
         )
 
+        # --- [新增] 动态更新模拟色块的颜色 ---
+        self.current_mock_color = self.mock_blob_color_cycle[int(t / 3) % 3]
+        # 在图像上绘制一个有颜色的圆点来代表模拟的色块
+        x, y = self.blob_center
+        self.draw.ellipse(
+            (x - 15, y - 15, x + 15, y + 15), fill=self.current_mock_color
+        )
+
+    # --- [核心修改] 模拟 find_blobs 以响应不同颜色 ---
     def find_blobs(self, thresholds, pixels_threshold=100, merge=True):
-        return [MockBlob(int(self.blob_center[0]), int(self.blob_center[1]), 30, 30)]
+        # 这是一个简化的模拟，它通过检查阈值结构来猜测请求的颜色
+        # 来自 vision.py 的 COLOR_THRESHOLDS
+        requested_color = "unknown"
+        first_thresh = thresholds[0][0]  # [[...]] -> [...]
+        # --- 根据 vision.py 的最新阈值同步修改 ---
+        if first_thresh == [0, 80, 40, 60, 40, 80]:  # 红色
+            requested_color = "orange"
+        elif first_thresh == [28, 68, 12, 52, -80, -40]:  # 紫色
+            requested_color = "purple"
+        elif first_thresh == [0, 80, -10, 10, -55, -30]:  # 蓝色
+            requested_color = "blue"
+        elif first_thresh == [0, 80, -15, 15, 50, 80]:  # 黄色
+            requested_color = "yellow"
+
+        # 只有当请求的颜色和当前模拟的颜色匹配时，才返回结果
+        if requested_color == self.current_mock_color:
+            return [
+                MockBlob(int(self.blob_center[0]), int(self.blob_center[1]), 30, 30)
+            ]
+        return []
 
     def find_apriltags(self, families=None):
         x, y = self.tag_center
@@ -121,103 +151,70 @@ class MockCamera:
         print("--- [MOCK] Using MOCK MaixPy Camera ---")
 
     def read(self):
+        # 每次读取时先用灰色填充背景，再更新对象位置（这会重绘色块）
         self.mock_image.img.paste("darkgray", (0, 0, self.width, self.height))
-        self.mock_image._update_object_positions()  # 确保模拟对象会动
+        self.mock_image._update_object_positions()
         return self.mock_image
 
     def close(self):
         print("--- [MOCK] MOCK MaixPy Camera closed. ---")
 
 
-# --- [核心修改] 更新 MockUART 类以模拟协同任务 ---
 class MockUART:
     def __init__(self, port, baudrate):
         self.port, self.baudrate = port, baudrate
         self.read_buffer = collections.deque(maxlen=10)
         self.write_log = []
         self.lock = threading.Lock()
-
         print(
             f"--- [MOCK] MOCK UART initialized on port {port} at {baudrate} baud. ---"
         )
-
-        # 如果是小车UART，则自动开始任务流程
         if self.port == "/dev/ttyS2":
-            print(
-                f"--- [MOCK] Car UART ({self.port}) will start task 1 in 5 seconds. ---"
-            )
             threading.Timer(5.0, self._add_to_read_buffer, args=["task1_start"]).start()
 
     def _add_to_read_buffer(self, message):
-        """线程安全地向读取缓冲区添加消息"""
         with self.lock:
-            print(f"--- [MOCK] Hardware on {self.port} sends: '{message}' ---")
             self.read_buffer.append(message.encode("utf-8"))
 
     def read(self):
-        """线程安全地从读取缓冲区读取消息"""
         with self.lock:
             if self.read_buffer:
                 return self.read_buffer.popleft()
         return None
 
     def write_str(self, s):
-        """模拟发送字符串指令"""
         command = s.strip()
         self.write_log.append(command)
-        print(f"--- [MOCK] Controller sends to {self.port}: '{command}' ---")
-
-        # 模拟机械臂 (ttyS0) 的响应
         if self.port == "/dev/ttyS0":
             if command == "arm_task1":
-                # 模拟3秒后完成任务
                 threading.Timer(
                     3.0, self._add_to_read_buffer, args=["arm_task1_end"]
                 ).start()
             elif command == "arm_task2":
-                # 模拟3秒后完成任务
                 threading.Timer(
                     3.0, self._add_to_read_buffer, args=["arm_task2_end"]
                 ).start()
-
-        # 模拟小车 (ttyS2) 的响应
         elif self.port == "/dev/ttyS2":
-            if "##task1_end" in command:  # 检查打包后的命令
-                # 模拟3秒后到达下一个站点
+            if "##task1_end" in command:
                 threading.Timer(
                     3.0, self._add_to_read_buffer, args=["task2_start"]
                 ).start()
-            elif "##task2_end" in command:
-                print(
-                    f"--- [MOCK] Car on {self.port} received final task end. Cycle complete. ---"
-                )
-                # 可以选择在这里重启循环
-                # threading.Timer(5.0, self._add_to_read_buffer, args=["task1_start"]).start()
-
         return len(s)
 
     def write(self, b):
-        """模拟发送字节指令（例如协议打包的数据）"""
         self.write_log.append(b.hex().upper())
-        print(
-            f"--- [MOCK] Controller sends to {self.port} (bytes): {b.hex().upper()} ---"
-        )
         return len(b)
 
 
-# ... (MockDisplay, MockNN, MockTrackResult, MockNanoTrack 保持不变) ...
 class MockDisplay:
     def __init__(self):
-        print("--- [MOCK] Display instantiated. ---")
+        pass
 
     def show(self, img):
         pass
 
 
 class MockNN:
-    def YOLOv5(self, model):
-        return None
-
     def NanoTrack(self, model):
         return MockNanoTrack(model)
 
@@ -264,9 +261,6 @@ class Maix:
     def Display(self):
         return MockDisplay()
 
-    def YOLOv5(self, model):
-        return MockNN().YOLOv5(model)
-
     def NanoTrack(self, model):
         return MockNN().NanoTrack(model)
 
@@ -278,18 +272,12 @@ class Maix:
         return Families
 
 
-# --- 最终导出的模拟实例 ---
-camera = Maix()
-image = Maix()
-uart = Maix()
-nn = Maix()
-display = Maix()
+camera, image, uart, nn, display = Maix(), Maix(), Maix(), Maix(), Maix()
 
 
-# --- [新增] 模拟 Pinmap 类 ---
 class MockPinmap:
     def set_pin_function(self, pin, func):
-        print(f"--- [MOCK] Setting pin {pin} to function {func} ---")
+        pass
 
 
 pinmap = MockPinmap()
