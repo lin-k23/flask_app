@@ -11,6 +11,24 @@ export function initDetection() {
     const qrcodeToggleSwitch = document.getElementById('toggle-qrcode-switch');
     const blobColorSelect = document.getElementById('blob-color-select');
 
+    // --- [新增] 定义颜色到CSS颜色的映射 ---
+    const COLOR_HEX_MAP = {
+        "blue": "#60a5fa",
+        "yellow": "#facc15",
+        "orange": "#fb923c",
+        "purple": "#a78bfa",
+    };
+
+    // --- [新增] 更新下拉框背景色的函数 ---
+    function updateSelectBackground(selectElement) {
+        const selectedColor = selectElement.value;
+        const colorHex = COLOR_HEX_MAP[selectedColor];
+        if (colorHex) {
+            // 使用内联样式来动态改变背景（小圆点）
+            selectElement.style.backgroundImage = `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="${colorHex.replace("#", "%23")}"/></svg>')`;
+        }
+    }
+
     if (blobColorSelect) {
         blobColorSelect.addEventListener('change', function () {
             const selectedColor = this.value;
@@ -22,7 +40,9 @@ export function initDetection() {
                 .then(res => res.json())
                 .then(data => console.log(data.message))
                 .catch(err => console.error('Failed to set blob color:', err));
+            updateSelectBackground(this);
         });
+        updateSelectBackground(blobColorSelect);
     }
 
     function setupSwitchListener(switchElement, featureName) {

@@ -114,3 +114,42 @@ input:checked+.slider:before {
 .slider.round:before {
     border-radius: 50%;
 }
+
+/* app/static/css/components.css */
+
+/* ... (文件原有内容) ... */
+
+/* --- 美化颜色选择下拉框 --- */
+.control-select {
+    padding-left: 30px;
+    /* 为颜色圆点留出空间 */
+    background-repeat: no-repeat;
+    background-position: 8px center;
+    background-size: 12px 12px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+/* 为每个option定义一个伪元素(小圆点) */
+.control-select option::before {
+    content: "●";
+    margin-right: 10px;
+    font-size: 14px;
+}
+
+/* 定义每个选项的颜色 */
+.control-select option[data-color="blue"]::before {
+    color: #60a5fa;
+}
+
+.control-select option[data-color="yellow"]::before {
+    color: #facc15;
+}
+
+.control-select option[data-color="orange"]::before {
+    color: #fb923c;
+}
+
+.control-select option[data-color="purple"]::before {
+    color: #a78bfa;
+}
