@@ -55,21 +55,22 @@ class VisionState:
 
 class VisionProcessor:
     def __init__(self, width=320, height=240):
-        # --- YOLOv5和摄像头初始化 ---
+        # --- [核心修改] 暂时禁用YOLOv5模型加载 ---
         self.detector = None
-        try:
-            model_to_load = (
-                MODEL_PATH if os.path.exists(MODEL_PATH) else FALLBACK_MODEL_PATH
-            )
-            if os.path.exists(model_to_load):
-                self.detector = nn.YOLOv5(model=model_to_load)
-                width, height = (
-                    self.detector.input_width(),
-                    self.detector.input_height(),
-                )
-                print(f"YOLOv5 model loaded. Input size: {width}x{height}")
-        except Exception as e:
-            print(f"!!! Failed to load YOLOv5 model: {e}")
+        print("!!! YOLOv5 detection is temporarily disabled. !!!")
+        # try:
+        #     model_to_load = (
+        #         MODEL_PATH if os.path.exists(MODEL_PATH) else FALLBACK_MODEL_PATH
+        #     )
+        #     if os.path.exists(model_to_load):
+        #         self.detector = nn.YOLOv5(model=model_to_load)
+        #         width, height = (
+        #             self.detector.input_width(),
+        #             self.detector.input_height(),
+        #         )
+        #         print(f"YOLOv5 model loaded. Input size: {width}x{height}")
+        # except Exception as e:
+        #     print(f"!!! Failed to load YOLOv5 model: {e}")
 
         self.cam = camera.Camera(width, height)
         print(f"Camera Initialized ({width}x{height})")
@@ -97,8 +98,7 @@ class VisionProcessor:
         self.blob_detection_enabled = True
         self.qrcode_detection_enabled = True  # <--- 新增：二维码识别开关
         self.TH_RED = [[0, 80, 40, 80, 10, 80]]
-        # self.TH_RED = [[0, 100, -30, 30, 70, 127]]
-        self.BLOB_PIXELS_THRESHOLD = 100
+        self.BLOB_PIXELS_THRESHOLD = 150
         self.APRILTAG_FAMILIES = image.ApriltagFamilies.TAG36H11
         self.APRILTAG_DISTANCE_FACTOR_K = 20.0
 

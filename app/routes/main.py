@@ -44,6 +44,33 @@ def get_arm_status():
     return jsonify({"log": log})
 
 
+# --- [新增] 创建一个新的API路由来获取机械臂发送日志 ---
+@main_bp.route("/api/arm_sent_log", methods=["GET"])
+def get_arm_sent_log():
+    log = current_app.arm_controller.get_sent_log()
+    return jsonify({"log": log})
+
+
+# --- [新增] 获取和控制视觉数据流状态的API ---
+@main_bp.route("/api/arm_vision_stream_status", methods=["GET"])
+def get_arm_vision_stream_status():
+    status = current_app.arm_controller.get_vision_stream_status()
+    return jsonify(status)
+
+
+@main_bp.route("/api/toggle_arm_vision_stream", methods=["POST"])
+def toggle_arm_vision_stream():
+    data = request.json
+    enabled = data.get("enabled")
+    if enabled:
+        current_app.arm_controller.start_vision_streams()
+        message = "Vision stream started by user."
+    else:
+        current_app.arm_controller.stop_vision_streams()
+        message = "Vision stream stopped by user."
+    return jsonify({"status": "success", "message": message})
+
+
 @main_bp.route("/api/send_arm_command", methods=["POST"])
 def send_arm_command():
     command_data = request.json
@@ -188,3 +215,18 @@ def start_tracking():
 def stop_tracking():
     current_app.vision_processor.stop_tracking()
     return jsonify(status="success", message="Tracking stopped")
+
+
+@main_bp.route("/api/send_pegboard_target", methods=["POST"])
+def send_pegboard_target():
+    data = request.json
+    row = data.get("row")
+    col = data.get("col")
+
+    if row is None or col is None:
+        return jsonify(status="error", message="无效的行列号"), 400
+
+    # 直接调用 arm_controller 的新方法发送行列号
+    response_message = current_app.arm_controller.send_pegboard_target(row, col)
+
+    return jsonify({"status": "success", "message": response_message})

@@ -22,12 +22,23 @@ def stop_background_threads(app):
 def start_background_services(app):
     """A function to initialize and start all services."""
     print("Starting background services...")
-    app.arm_controller = ArmController()
-    app.vision_processor = VisionProcessor()
-    app.car_controller = CarController()
 
+    # --- [核心修改] ---
+    # 1. 创建所有控制器实例
+    app.arm_controller = ArmController()
+    app.car_controller = CarController()
+    app.vision_processor = VisionProcessor()  # vision需要先于arm启动
+
+    # 2. 注入依赖
+    app.car_controller.set_arm_controller(app.arm_controller)
+    app.arm_controller.set_car_controller(app.car_controller)
+    # [新增] 将 vision_processor 的引用注入到 arm_controller 中
+    app.arm_controller.set_vision_processor(app.vision_processor)
+
+    # 3. 启动所有后台线程
     app.vision_processor.start()
     print("All background services started.")
+    # --- [修改结束] ---
 
 
 def create_app():

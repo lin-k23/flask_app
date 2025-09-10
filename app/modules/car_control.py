@@ -26,6 +26,7 @@ class CarController:
         self.reader_lock = threading.Lock()
 
         self.task_stage = 1
+        self.arm_controller = None
 
         try:
             print("Setting pin functions for Car UART (UART2)...")
@@ -40,6 +41,11 @@ class CarController:
             print(f"Car controller initialized on {port} and reader thread started.")
         except Exception as e:
             print(f"!!! Failed to initialize car controller on {port}: {e}")
+
+    # --- [新增] 接收 arm_controller 实例的方法 ---
+    def set_arm_controller(self, arm_controller):
+        self.arm_controller = arm_controller
+        print("Arm controller has been linked to Car controller.")
 
     def _read_loop(self):
         while not self.stopped:
@@ -59,30 +65,39 @@ class CarController:
                     time.sleep(1)
             time.sleep(0.01)
 
+    # --- [核心修改] 任务处理逻辑 ---
     def process_task_message(self, message):
         print(f"Processing task message: {message}, current stage: {self.task_stage}")
+
+        # 检查 arm_controller 是否已连接
+        if not self.arm_controller:
+            print("!!! Arm controller not linked, cannot start协同task.")
+            return
+
         if "task1_start" in message and self.task_stage == 1:
-            print("Received task1_start. Simulating arm task for 5 seconds...")
+            print("Received task1_start from car. Commanding arm to start arm_task1.")
+            # 直接命令机械臂开始任务1
+            self.arm_controller.send_task_command("arm_task1")
 
-            def task_1_delay():
-                print("Simulation finished. Sending task1_end to car.")
-                self.send_command("task1_end")
-                self.task_stage = 2
-
-            self.send_command("Test for task1_start received")
-            timer = threading.Timer(5.0, task_1_delay)
-            timer.start()
         elif "task2_start" in message and self.task_stage == 2:
-            print("Received task2_start. Simulating arm task for 5 seconds...")
+            print("Received task2_start from car. Commanding arm to start arm_task2.")
+            # 直接命令机械臂开始任务2
+            self.arm_controller.send_task_command("arm_task2")
 
-            def task_2_delay():
-                print("Simulation finished. Sending task2_end to car.")
-                self.send_command("task2_end")
-                self.task_stage = 1
-                print("Task stage has been reset to 1.")
+    # --- [新增] 供机械臂调用的回调函数 ---
+    def on_arm_task_finished(self, arm_task_name):
+        """当机械臂完成任务后，此方法被 ArmController 调用"""
+        print(f"Received notification that arm finished '{arm_task_name}'.")
+        if arm_task_name == "arm_task1" and self.task_stage == 1:
+            print("Arm task 1 finished. Sending task1_end to car.")
+            self.send_command("task1_end")
+            self.task_stage = 2  # 更新状态，准备接收 task2_start
 
-            timer = threading.Timer(5.0, task_2_delay)
-            timer.start()
+        elif arm_task_name == "arm_task2" and self.task_stage == 2:
+            print("Arm task 2 finished. Sending task2_end to car.")
+            self.send_command("task2_end")
+            self.task_stage = 1  # 重置任务状态，准备下一轮
+            print("Task sequence complete. Resetting stage to 1.")
 
     def stop_thread(self):
         self.stopped = True

@@ -3,6 +3,8 @@ import numpy as np
 from PIL import Image, ImageDraw
 import time
 import math
+import collections
+import threading
 
 
 # --- 模拟 MaixPy 的数据结构 (无变化) ---
@@ -56,6 +58,7 @@ class MockAprilTag:
 
 # --- 模拟 MaixPy 的核心类 ---
 class MockImage:
+    # ... (这个类的内容保持不变) ...
     def __init__(self, width, height):
         self.width, self.height = width, height
         self.img = Image.new("RGB", (width, height), color="darkgray")
@@ -90,7 +93,7 @@ class MockImage:
         return [MockAprilTag(18, int(x), int(y), corners)]
 
     def find_qrcodes(self):
-        return []  # 默认不返回二维码
+        return []
 
     def draw_line(self, x1, y1, x2, y2, color, thickness):
         self.draw.line((x1, y1, x2, y2), fill=color, width=thickness)
@@ -115,37 +118,99 @@ class MockCamera:
     def __init__(self, width=320, height=240):
         self.width, self.height = width, height
         self.mock_image = MockImage(width, height)
-        print("--- [DEBUG] Using MOCK MaixPy Camera ---")
+        print("--- [MOCK] Using MOCK MaixPy Camera ---")
 
     def read(self):
         self.mock_image.img.paste("darkgray", (0, 0, self.width, self.height))
+        self.mock_image._update_object_positions()  # 确保模拟对象会动
         return self.mock_image
 
     def close(self):
-        print("--- [DEBUG] MOCK MaixPy Camera closed. ---")
+        print("--- [MOCK] MOCK MaixPy Camera closed. ---")
 
 
+# --- [核心修改] 更新 MockUART 类以模拟协同任务 ---
 class MockUART:
     def __init__(self, port, baudrate):
         self.port, self.baudrate = port, baudrate
+        self.read_buffer = collections.deque(maxlen=10)
+        self.write_log = []
+        self.lock = threading.Lock()
+
         print(
-            f"--- [DEBUG] MOCK UART initialized on port {port} at {baudrate} baud. ---"
+            f"--- [MOCK] MOCK UART initialized on port {port} at {baudrate} baud. ---"
         )
 
+        # 如果是小车UART，则自动开始任务流程
+        if self.port == "/dev/ttyS2":
+            print(
+                f"--- [MOCK] Car UART ({self.port}) will start task 1 in 5 seconds. ---"
+            )
+            threading.Timer(5.0, self._add_to_read_buffer, args=["task1_start"]).start()
+
+    def _add_to_read_buffer(self, message):
+        """线程安全地向读取缓冲区添加消息"""
+        with self.lock:
+            print(f"--- [MOCK] Hardware on {self.port} sends: '{message}' ---")
+            self.read_buffer.append(message.encode("utf-8"))
+
     def read(self):
+        """线程安全地从读取缓冲区读取消息"""
+        with self.lock:
+            if self.read_buffer:
+                return self.read_buffer.popleft()
         return None
 
+    def write_str(self, s):
+        """模拟发送字符串指令"""
+        command = s.strip()
+        self.write_log.append(command)
+        print(f"--- [MOCK] Controller sends to {self.port}: '{command}' ---")
+
+        # 模拟机械臂 (ttyS0) 的响应
+        if self.port == "/dev/ttyS0":
+            if command == "arm_task1":
+                # 模拟3秒后完成任务
+                threading.Timer(
+                    3.0, self._add_to_read_buffer, args=["arm_task1_end"]
+                ).start()
+            elif command == "arm_task2":
+                # 模拟3秒后完成任务
+                threading.Timer(
+                    3.0, self._add_to_read_buffer, args=["arm_task2_end"]
+                ).start()
+
+        # 模拟小车 (ttyS2) 的响应
+        elif self.port == "/dev/ttyS2":
+            if "##task1_end" in command:  # 检查打包后的命令
+                # 模拟3秒后到达下一个站点
+                threading.Timer(
+                    3.0, self._add_to_read_buffer, args=["task2_start"]
+                ).start()
+            elif "##task2_end" in command:
+                print(
+                    f"--- [MOCK] Car on {self.port} received final task end. Cycle complete. ---"
+                )
+                # 可以选择在这里重启循环
+                # threading.Timer(5.0, self._add_to_read_buffer, args=["task1_start"]).start()
+
+        return len(s)
+
     def write(self, b):
+        """模拟发送字节指令（例如协议打包的数据）"""
+        self.write_log.append(b.hex().upper())
+        print(
+            f"--- [MOCK] Controller sends to {self.port} (bytes): {b.hex().upper()} ---"
+        )
         return len(b)
 
 
-# --- [新增] 模拟Display类 ---
+# ... (MockDisplay, MockNN, MockTrackResult, MockNanoTrack 保持不变) ...
 class MockDisplay:
     def __init__(self):
         print("--- [MOCK] Display instantiated. ---")
 
     def show(self, img):
-        # 在模拟模式下，静默处理，避免刷屏
         pass
 
 
@@ -180,12 +245,15 @@ class MockNanoTrack:
 
 
 class Maix:
+    COLOR_GREEN = "green"
+    COLOR_RED = "red"
+
     def __init__(self):
         self.camera = self
         self.image = self
         self.uart = self
         self.nn = self
-        self.display = self  # <-- 新增
+        self.display = self
 
     def Camera(self, width, height):
         return MockCamera(width, height)
@@ -194,7 +262,7 @@ class Maix:
         return MockUART(port, baudrate)
 
     def Display(self):
-        return MockDisplay()  # <-- 新增
+        return MockDisplay()
 
     def YOLOv5(self, model):
         return MockNN().YOLOv5(model)
@@ -215,4 +283,13 @@ camera = Maix()
 image = Maix()
 uart = Maix()
 nn = Maix()
-display = Maix()  # <-- 新增
+display = Maix()
+
+
+# --- [新增] 模拟 Pinmap 类 ---
+class MockPinmap:
+    def set_pin_function(self, pin, func):
+        print(f"--- [MOCK] Setting pin {pin} to function {func} ---")
+
+
+pinmap = MockPinmap()
