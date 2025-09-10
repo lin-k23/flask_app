@@ -417,3 +417,101 @@
     padding: 4px 8px;
     font-family: 'Roboto Mono', monospace;
 }
+
+/* 在 app/static/css/panels.css 末尾添加 */
+
+/* 当面板被禁用时的样式 */
+.main-controls:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    /* 阻止所有鼠标事件 */
+    filter: grayscale(50%);
+}
+
+#pegboard.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    filter: grayscale(50%);
+}
+
+/* ... (文件原有内容) ... */
+
+/* Style for the new simulation button */
+.system-btn.btn-green {
+    border-color: #4CAF50;
+    /* Green */
+    color: #4CAF50;
+}
+
+.system-btn.btn-green:hover {
+    background-color: #4CAF50;
+    color: var(--bg-dark);
+    box-shadow: 0 0 10px #4CAF50;
+}
+
+/* ... (文件原有内容) ... */
+
+/* [核心修改] 为新的洞洞板颜色按钮添加样式 */
+#pegboard-module .chip-blue,
+#pegboard-module .dot-blue {
+    background: #60a5fa;
+}
+
+#pegboard-module .chip-yellow,
+#pegboard-module .dot-yellow {
+    background: #facc15;
+}
+
+#pegboard-module .chip-orange,
+#pegboard-module .dot-orange {
+    background: #fb923c;
+}
+
+#pegboard-module .chip-purple,
+#pegboard-module .dot-purple {
+    background: #a78bfa;
+}
+
+#pegboard-module .hole.blue::after {
+    width: 60%;
+    height: 60%;
+    border-radius: 50%;
+    background: #60a5fa;
+    box-shadow: 0 0 8px #60a5fa;
+}
+
+#pegboard-module .hole.yellow::after {
+    width: 70%;
+    height: 70%;
+    border-radius: 4px;
+    background: #facc15;
+    box-shadow: 0 0 8px #facc15;
+}
+
+#pegboard-module .hole.orange::after {
+    width: 70%;
+    height: 4px;
+    border-radius: 2px;
+    background: #fb923c;
+    box-shadow: 0 0 8px #fb923c;
+}
+
+#pegboard-module .hole.purple::after {
+    width: 4px;
+    height: 70%;
+    border-radius: 2px;
+    background: #a78bfa;
+    box-shadow: 0 0 8px #a78bfa;
+}
+
+/* 模拟按钮样式 */
+.system-btn.btn-blue {
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}
+
+.system-btn.btn-blue:hover {
+    background-color: var(--accent-blue);
+    color: var(--bg-dark);
+    box-shadow: var(--glow-blue);
+}

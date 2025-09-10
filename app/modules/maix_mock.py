@@ -5,9 +5,10 @@ import time
 import math
 import collections
 import threading
+import struct
 
 
-# --- 模拟 MaixPy 的数据结构 (无变化) ---
+# ... (MockBlob, MockAprilTag, MockImage, MockCamera 的代码无变化) ...
 class MockBlob:
     def __init__(self, x, y, w, h):
         self._cx, self._cy, self._w, self._h = x, y, w, h
@@ -56,7 +57,6 @@ class MockAprilTag:
         return -0.5
 
 
-# --- 模拟 MaixPy 的核心类 ---
 class MockImage:
     def __init__(self, width, height):
         self.width, self.height = width, height
@@ -66,9 +66,8 @@ class MockImage:
         self.ApriltagFamilies = type("Families", (), {"TAG36H11": "TAG36H11"})
         self.blob_center = (width / 2, height / 2)
         self.tag_center = (width / 4, height / 4)
-        # --- [新增] 模拟颜色循环 ---
-        self.mock_blob_color_cycle = ["red", "green", "blue", "yellow"]
-        self.current_mock_color = "red"
+        self.mock_blob_color_cycle = ["blue", "yellow", "orange", "purple"]
+        self.current_mock_color = "blue"
 
     def _update_object_positions(self):
         t = time.time()
@@ -80,32 +79,25 @@ class MockImage:
             self.width / 2 + math.sin(t * 0.7) * 80,
             self.height / 2 - math.cos(t * 0.7) * 60,
         )
-
-        # --- [新增] 动态更新模拟色块的颜色 ---
-        self.current_mock_color = self.mock_blob_color_cycle[int(t / 3) % 3]
-        # 在图像上绘制一个有颜色的圆点来代表模拟的色块
+        self.current_mock_color = self.mock_blob_color_cycle[
+            int(t / 3) % len(self.mock_blob_color_cycle)
+        ]
         x, y = self.blob_center
         self.draw.ellipse(
             (x - 15, y - 15, x + 15, y + 15), fill=self.current_mock_color
         )
 
-    # --- [核心修改] 模拟 find_blobs 以响应不同颜色 ---
     def find_blobs(self, thresholds, pixels_threshold=100, merge=True):
-        # 这是一个简化的模拟，它通过检查阈值结构来猜测请求的颜色
-        # 来自 vision.py 的 COLOR_THRESHOLDS
         requested_color = "unknown"
-        first_thresh = thresholds[0][0]  # [[...]] -> [...]
-        # --- 根据 vision.py 的最新阈值同步修改 ---
-        if first_thresh == [0, 80, 40, 60, 40, 80]:  # 红色
-            requested_color = "orange"
-        elif first_thresh == [28, 68, 12, 52, -80, -40]:  # 紫色
-            requested_color = "purple"
-        elif first_thresh == [0, 80, -10, 10, -55, -30]:  # 蓝色
+        first_thresh = thresholds[0][0]
+        if first_thresh == [0, 80, -10, 10, -55, -30]:
             requested_color = "blue"
-        elif first_thresh == [0, 80, -15, 15, 50, 80]:  # 黄色
+        elif first_thresh == [0, 80, -15, 15, 50, 80]:
             requested_color = "yellow"
-
-        # 只有当请求的颜色和当前模拟的颜色匹配时，才返回结果
+        elif first_thresh == [0, 80, 40, 60, 40, 80]:
+            requested_color = "orange"
+        elif first_thresh == [28, 68, 12, 52, -80, -40]:
+            requested_color = "purple"
         if requested_color == self.current_mock_color:
             return [
                 MockBlob(int(self.blob_center[0]), int(self.blob_center[1]), 30, 30)
@@ -151,7 +143,6 @@ class MockCamera:
         print("--- [MOCK] Using MOCK MaixPy Camera ---")
 
     def read(self):
-        # 每次读取时先用灰色填充背景，再更新对象位置（这会重绘色块）
         self.mock_image.img.paste("darkgray", (0, 0, self.width, self.height))
         self.mock_image._update_object_positions()
         return self.mock_image
@@ -169,11 +160,10 @@ class MockUART:
         print(
             f"--- [MOCK] MOCK UART initialized on port {port} at {baudrate} baud. ---"
         )
-        if self.port == "/dev/ttyS2":
-            threading.Timer(5.0, self._add_to_read_buffer, args=["task1_start"]).start()
 
     def _add_to_read_buffer(self, message):
         with self.lock:
+            print(f"--- [MOCK] Hardware on {self.port} sends: '{message}' ---")
             self.read_buffer.append(message.encode("utf-8"))
 
     def read(self):
@@ -185,27 +175,38 @@ class MockUART:
     def write_str(self, s):
         command = s.strip()
         self.write_log.append(command)
-        if self.port == "/dev/ttyS0":
-            if command == "arm_task1":
-                threading.Timer(
-                    3.0, self._add_to_read_buffer, args=["arm_task1_end"]
-                ).start()
-            elif command == "arm_task2":
-                threading.Timer(
-                    3.0, self._add_to_read_buffer, args=["arm_task2_end"]
-                ).start()
-        elif self.port == "/dev/ttyS2":
-            if "##task1_end" in command:
-                threading.Timer(
-                    3.0, self._add_to_read_buffer, args=["task2_start"]
-                ).start()
+        print(f"--- [MOCK] Controller sends to {self.port}: '{command}' ---")
+
+        # --- [核心修改] 移除自动发送 "task2_start" 的逻辑 ---
+        # The simulation flow is now controlled by separate user clicks.
         return len(s)
 
     def write(self, b):
         self.write_log.append(b.hex().upper())
+        print(
+            f"--- [MOCK] Controller sends to {self.port} (bytes): {b.hex().upper()} ---"
+        )
+        if self.port == "/dev/ttyS0":
+            if b.startswith(b"\xaa\x55"):
+                data_type = b[2]
+                if data_type == 0x10:  # Task 1
+                    print(
+                        f"--- [MOCK] Arm received Task 1. Will send '1end' in 5 seconds. ---"
+                    )
+                    threading.Timer(
+                        5.0, self._add_to_read_buffer, args=["1end"]
+                    ).start()
+                elif data_type == 0x11:  # Task 2
+                    print(
+                        f"--- [MOCK] Arm received Task 2. Will send '2end' in 5 seconds. ---"
+                    )
+                    threading.Timer(
+                        5.0, self._add_to_read_buffer, args=["2end"]
+                    ).start()
         return len(b)
 
 
+# ... (MockDisplay, MockNN, etc. 的代码无变化) ...
 class MockDisplay:
     def __init__(self):
         pass
@@ -242,8 +243,7 @@ class MockNanoTrack:
 
 
 class Maix:
-    COLOR_GREEN = "green"
-    COLOR_RED = "red"
+    COLOR_GREEN, COLOR_RED = "green", "red"
 
     def __init__(self):
         self.camera = self

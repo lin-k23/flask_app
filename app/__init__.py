@@ -23,29 +23,28 @@ def start_background_services(app):
     """A function to initialize and start all services."""
     print("Starting background services...")
 
-    # --- [核心修改] ---
-    # 1. 创建所有控制器实例
-    app.arm_controller = ArmController()
-    app.car_controller = CarController()
-    app.vision_processor = VisionProcessor()  # vision需要先于arm启动
+    # --- [核心修改] 增加 AWAITING_TASK2_INPUT 状态 ---
+    app.state_manager = {
+        "status": "MANUAL",  # MANUAL, TASK_AUTO, AWAITING_TASK2_INPUT
+        "task2_target": None,
+    }
 
-    # 2. 注入依赖
+    app.arm_controller = ArmController(state_manager=app.state_manager)
+    app.car_controller = CarController(state_manager=app.state_manager)
+    app.vision_processor = VisionProcessor()
+
     app.car_controller.set_arm_controller(app.arm_controller)
     app.arm_controller.set_car_controller(app.car_controller)
-    # [新增] 将 vision_processor 的引用注入到 arm_controller 中
     app.arm_controller.set_vision_processor(app.vision_processor)
 
-    # 3. 启动所有后台线程
     app.vision_processor.start()
     print("All background services started.")
-    # --- [修改结束] ---
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Initial start of services
     start_background_services(app)
 
     from .routes.main import main_bp

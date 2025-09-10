@@ -17,23 +17,19 @@ except (ImportError, ModuleNotFoundError):
 
 
 class CarController:
-    def __init__(self, port="/dev/ttyS2", baudrate=115200):
+    def __init__(self, port="/dev/ttyS2", baudrate=115200, state_manager=None):
         self.serial_port = None
         self.received_log = collections.deque(maxlen=50)
-        # --- [新增] 创建一个用于存储发送日志的队列 ---
         self.sent_log = collections.deque(maxlen=50)
         self.send_lock = threading.Lock()
         self.reader_lock = threading.Lock()
-
         self.task_stage = 1
         self.arm_controller = None
+        self.state_manager = state_manager
 
         try:
-            print("Setting pin functions for Car UART (UART2)...")
             pinmap.set_pin_function("A28", "UART2_TX")
             pinmap.set_pin_function("A29", "UART2_RX")
-            print("Pin functions for Car UART set successfully.")
-
             self.serial_port = uart.UART(port, baudrate)
             self.stopped = False
             self.reader_thread = threading.Thread(target=self._read_loop, daemon=True)
@@ -42,7 +38,6 @@ class CarController:
         except Exception as e:
             print(f"!!! Failed to initialize car controller on {port}: {e}")
 
-    # --- [新增] 接收 arm_controller 实例的方法 ---
     def set_arm_controller(self, arm_controller):
         self.arm_controller = arm_controller
         print("Arm controller has been linked to Car controller.")
@@ -61,43 +56,61 @@ class CarController:
                                 )
                             self.process_task_message(message)
                 except Exception as e:
-                    print(f"Error reading from car serial port: {e}")
                     time.sleep(1)
             time.sleep(0.01)
 
-    # --- [核心修改] 任务处理逻辑 ---
-    def process_task_message(self, message):
-        print(f"Processing task message: {message}, current stage: {self.task_stage}")
+    def simulate_task1_start(self):
+        """Simulates receiving 'task1_start' from the car."""
+        print("--- [SIMULATION] Manually triggering Task 1 start ---")
+        simulated_message = f"[{time.strftime('%H:%M:%S')}] [SIMULATION] task1_start"
+        with self.reader_lock:
+            self.received_log.append(simulated_message)
+        self.process_task_message("task1_start")
+        return "Task 1 simulation started."
 
-        # 检查 arm_controller 是否已连接
+    def simulate_task2_start(self):
+        """Simulates receiving 'task2_start' from the car."""
+        if self.task_stage != 2:
+            return f"Task 2 cannot be started. System is not in the correct stage (Current stage: {self.task_stage})."
+        print("--- [SIMULATION] Manually triggering Task 2 start ---")
+        simulated_message = f"[{time.strftime('%H:%M:%S')}] [SIMULATION] task2_start"
+        with self.reader_lock:
+            self.received_log.append(simulated_message)
+        self.process_task_message("task2_start")
+        return "Task 2 simulation started. Pegboard is now active."
+
+    def process_task_message(self, message):
         if not self.arm_controller:
-            print("!!! Arm controller not linked, cannot start协同task.")
             return
 
         if "task1_start" in message and self.task_stage == 1:
-            print("Received task1_start from car. Commanding arm to start arm_task1.")
-            # 直接命令机械臂开始任务1
-            self.arm_controller.send_task_command("arm_task1")
+            if self.state_manager:
+                self.state_manager["status"] = "TASK_AUTO"
+                print(
+                    f"--- System state changed to: {self.state_manager['status']} (triggered by Task 1) ---"
+                )
+            print("Received task1_start. Commanding arm to start Task 1 (0x10).")
+            self.arm_controller.send_task1_command()
 
+        # --- [核心修改] 收到task2_start后，只改变状态，等待用户输入 ---
         elif "task2_start" in message and self.task_stage == 2:
-            print("Received task2_start from car. Commanding arm to start arm_task2.")
-            # 直接命令机械臂开始任务2
-            self.arm_controller.send_task_command("arm_task2")
+            if self.state_manager:
+                self.state_manager["status"] = "AWAITING_TASK2_INPUT"
+                print(
+                    f"--- System state changed to: {self.state_manager['status']}. Waiting for user on pegboard. ---"
+                )
 
-    # --- [新增] 供机械臂调用的回调函数 ---
-    def on_arm_task_finished(self, arm_task_name):
-        """当机械臂完成任务后，此方法被 ArmController 调用"""
-        print(f"Received notification that arm finished '{arm_task_name}'.")
-        if arm_task_name == "arm_task1" and self.task_stage == 1:
-            print("Arm task 1 finished. Sending task1_end to car.")
-            self.send_command("task1_end")
-            self.task_stage = 2  # 更新状态，准备接收 task2_start
-
-        elif arm_task_name == "arm_task2" and self.task_stage == 2:
-            print("Arm task 2 finished. Sending task2_end to car.")
-            self.send_command("task2_end")
-            self.task_stage = 1  # 重置任务状态，准备下一轮
-            print("Task sequence complete. Resetting stage to 1.")
+    def update_task_stage(self, task_id_finished):
+        """Called by arm_controller to keep the car's state machine in sync."""
+        print(
+            f"Updating car's internal state machine after Task {task_id_finished} finished."
+        )
+        if task_id_finished == 1 and self.task_stage == 1:
+            self.task_stage = 2
+            print(f"Car task stage is now {self.task_stage}. Ready for task2_start.")
+        elif task_id_finished == 2 and self.task_stage == 2:
+            self.task_stage = 1
+            print(f"Car task stage is now {self.task_stage}. Ready for next cycle.")
 
     def stop_thread(self):
         self.stopped = True
@@ -108,24 +121,14 @@ class CarController:
         with self.reader_lock:
             return list(self.received_log)
 
-    # --- [新增] 添加一个获取发送日志的函数 ---
     def get_sent_log(self):
-        # 这个函数不需要锁，因为deque的append是线程安全的
         return list(self.sent_log)
 
     def send_command(self, command_string):
         with self.send_lock:
             if not self.serial_port:
-                print("!!! Car serial port not available.")
                 return
-
             packet_to_send = f"##{command_string}\r\n"
-
-            # --- [核心修改] 将发送的命令记录到日志中 ---
             log_message = f"[{time.strftime('%H:%M:%S')}] {command_string}"
             self.sent_log.append(log_message)
-            # --- [修改结束] ---
-
-            print(f"Sending to car (raw): {command_string}")
-            print(f"Sending to car (packet): {repr(packet_to_send)}")
             self.serial_port.write_str(packet_to_send)

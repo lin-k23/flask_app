@@ -1,24 +1,28 @@
-// app/static/js/modules/pegboard.js (最终修正版)
+// app/static/js/modules/pegboard.js
 
 export function initPegboard() {
     const rows = 8, cols = 15;
-    const isHole = () => true;
-
-    let board = Array.from({ length: rows }, () => Array.from({ length: cols }, () => 0));
-
     const root = document.getElementById("pegboard");
     const tools = document.getElementById("peg-tools");
     const coordDisplay = document.getElementById("peg-coord");
-
-    // --- [核心修改] 移除对 visionLogEl 的获取和直接操作 ---
 
     if (!root || !tools || !coordDisplay) {
         console.error("Pegboard module is missing required elements.");
         return;
     }
 
-    const HOOK_TYPES = ["h1", "h2", "h3", "h4"];
-    let currentType = "h1";
+    // --- [核心修改] 颜色名称到ID的映射，与 vision.py 保持一致 ---
+    const COLOR_MAP = {
+        "blue": 0,
+        "yellow": 1,
+        "orange": 2,
+        "purple": 3,
+    };
+    // 用于UI显示的颜色类型
+    const COLOR_TYPES = ["blue", "yellow", "orange", "purple"];
+
+    let board = Array.from({ length: rows }, () => Array(cols).fill(0));
+    let currentType = "blue"; // 默认选择蓝色
 
     tools.addEventListener("click", (e) => {
         const btn = e.target.closest("button");
@@ -28,48 +32,40 @@ export function initPegboard() {
         btn.classList.add("active");
     });
 
-    // ... (键盘事件监听不变) ...
-    window.addEventListener("keydown", (e) => {
-        const key = e.key;
-        let targetType = null;
-        if (key >= "1" && key <= "4") {
-            targetType = `h${key}`;
-        } else if (key === "0" || key === "Backspace" || key === "Delete") {
-            targetType = "erase";
-        }
-        if (targetType) {
-            currentType = targetType;
-            tools.querySelectorAll("button").forEach(b => {
-                b.classList.toggle("active", b.dataset.type === targetType);
-            });
-        }
-    });
+    // --- [核心修改] 此函数现在是执行Task2的唯一入口 ---
+    function executeTask2(row, col) {
+        const colorId = COLOR_MAP[currentType];
 
+        if (colorId === undefined) {
+            alert(`错误：未知的颜色类型 '${currentType}'`);
+            return;
+        }
 
-    // --- [核心修改] 简化发送函数，不再操作UI ---
-    function sendPegboardTarget(row, col) {
-        fetch("/api/send_pegboard_target", {
+        fetch("/api/execute_task2", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ row: row, col: col })
+            body: JSON.stringify({ row: row, col: col, color_id: colorId })
         })
             .then(res => res.json())
             .then(data => {
-                // 只在控制台打印响应，UI日志会自动更新
-                console.log("Pegboard target sent response:", data);
+                if (data.status !== 'success') {
+                    alert(data.message);
+                }
+                console.log("Execute Task 2 response:", data)
             })
-            .catch(error => {
-                console.error("发送洞洞板坐标失败:", error);
-            });
+            .catch(error => console.error("执行Task 2失败:", error));
     }
 
-    // ... (paintHole, syncToBackend, renderBoard 等函数不变, renderBoard内部的handlePaint逻辑也不变) ...
     function paintHole(element, state) {
         element.classList.toggle("active", !!state && state !== 0);
-        HOOK_TYPES.forEach(type => element.classList.remove(type));
+        // 移除所有颜色相关的class
+        COLOR_TYPES.forEach(type => element.classList.remove(type));
+
         if (state && typeof state === 'string') {
             element.dataset.t = state;
-            element.classList.add(state);
+            if (COLOR_TYPES.includes(state)) {
+                element.classList.add(state); // 添加对应的颜色class
+            }
         } else {
             element.removeAttribute("data-t");
         }
@@ -102,8 +98,9 @@ export function initPegboard() {
                         board[r][c] = newState;
                         paintHole(hole, newState);
                         syncToBackend(r, c, newState);
+                        // --- [核心修改] 点击后直接执行Task 2 ---
                         if (newState !== 0) {
-                            sendPegboardTarget(r, c);
+                            executeTask2(r, c);
                         }
                     }
                 };
@@ -124,7 +121,6 @@ export function initPegboard() {
         root.addEventListener("mouseleave", () => { coordDisplay.textContent = `– , –`; });
     }
 
-    // ... (初始化 fetch 不变) ...
     fetch("/api/pegboard")
         .then(res => res.ok ? res.json() : Promise.reject(res.status))
         .then(initialBoardState => {

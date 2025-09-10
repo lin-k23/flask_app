@@ -12,7 +12,7 @@ except (ImportError, ModuleNotFoundError):
 
 
 class ArmController:
-    def __init__(self, port="/dev/ttyS0", baudrate=115200):
+    def __init__(self, port="/dev/ttyS0", baudrate=115200, state_manager=None):
         self.serial_port = None
         self.received_log = collections.deque(maxlen=50)
         self.sent_log = collections.deque(maxlen=50)
@@ -23,6 +23,7 @@ class ArmController:
         self.vision_stream_active = False
         self.vision_stream_thread = None
         self.VISION_SEND_INTERVAL = 0.5
+        self.state_manager = state_manager
 
         try:
             self.serial_port = uart.UART(port, baudrate)
@@ -32,27 +33,6 @@ class ArmController:
             print(f"Arm controller initialized on {port} and reader thread started.")
         except Exception as e:
             print(f"!!! Failed to initialize arm controller on {port}: {e}")
-
-        print("--- [TEST] Scheduling arm string test in 5 seconds. ---")
-        threading.Timer(5.0, self._run_startup_test).start()
-
-    def _run_startup_test(self):
-        print("--- [TEST] Running startup test: sending string command to arm. ---")
-        self.send_string_command_with_protocol("SYSTEM_CHECK")
-
-    def send_string_command_with_protocol(self, command_string):
-        with self.send_lock:
-            if not self.serial_port:
-                return "错误: 串口不可用"
-            try:
-                payload = command_string.encode("utf-8")
-                packet = self._create_packet(0x10, payload)
-                log_message = f"字符串指令: {command_string}"
-                return self._log_and_send(log_message, packet)
-            except Exception as e:
-                error_info = f"!!! 打包字符串指令 '{command_string}' 时出错: {e}"
-                print(error_info)
-                return error_info
 
     def set_car_controller(self, car_controller):
         self.car_controller = car_controller
@@ -102,21 +82,42 @@ class ArmController:
     def get_vision_stream_status(self):
         return {"is_active": self.vision_stream_active}
 
-    def send_task_command(self, command_string):
+    def send_task1_command(self):
         with self.send_lock:
             if not self.serial_port:
                 return "错误: 串口不可用"
             try:
-                payload = command_string.encode("utf-8")
-                packet = self._create_packet(0x10, payload)
-                log_message = f"任务指令: {command_string}"
+                packet = self._create_packet(0x10, b"")
+                log_message = "任务指令: Task 1 (0x10)"
                 self._log_and_send(log_message, packet)
                 self.start_vision_streams()
                 return log_message
             except Exception as e:
-                error_info = f"!!! 打包任务指令 '{command_string}' 时出错: {e}"
-                print(error_info)
-                return error_info
+                return f"!!! 打包 Task 1 指令时出错: {e}"
+
+    def send_task2_command(self, row, col, color_id):
+        with self.send_lock:
+            if not self.serial_port:
+                return "错误: 串口不可用"
+            try:
+                payload = struct.pack(">hhh", int(row), int(col), int(color_id))
+                packet = self._create_packet(0x11, payload)
+                log_message = (
+                    f"任务指令: Task 2 (0x11) -> R:{row}, C:{col}, Color:{color_id}"
+                )
+
+                # --- [核心修改] 发送指令后，立刻切换到自动模式 ---
+                if self.state_manager:
+                    self.state_manager["status"] = "TASK_AUTO"
+                    print(
+                        f"--- System state changed to: {self.state_manager['status']} (triggered by Pegboard click) ---"
+                    )
+
+                self._log_and_send(log_message, packet)
+                self.start_vision_streams()
+                return log_message
+            except Exception as e:
+                return f"!!! 打包 Task 2 指令时出错: {e}"
 
     def _read_loop(self):
         while not self.stopped:
@@ -132,21 +133,30 @@ class ArmController:
                                 )
                             self.process_arm_message(message)
                 except Exception as e:
-                    print(f"Error reading from arm serial port: {e}")
                     time.sleep(1)
             time.sleep(0.01)
 
     def process_arm_message(self, message):
-        if not self.car_controller:
-            return
-        task_finished = None
-        if "arm_task1_end" in message:
-            task_finished = "arm_task1"
-        elif "arm_task2_end" in message:
-            task_finished = "arm_task2"
-        if task_finished:
+        task_id_finished = None
+        if "1end" in message:
+            task_id_finished = 1
+            print("Arm task 1 finished. Notifying car controller to send 'task1_end'.")
+            self.car_controller.send_command("task1_end")
+
+        elif "2end" in message:
+            task_id_finished = 2
+            print("Arm task 2 finished. Notifying car controller to send 'task2_end'.")
+            self.car_controller.send_command("task2_end")
+
+        if task_id_finished:
+            if self.state_manager:
+                self.state_manager["status"] = "MANUAL"
+                print(
+                    f"--- System state changed to: {self.state_manager['status']} (Task {task_id_finished} finished) ---"
+                )
             self.stop_vision_streams()
-            self.car_controller.on_arm_task_finished(task_finished)
+            if self.car_controller:
+                self.car_controller.update_task_stage(task_id_finished)
 
     def stop(self):
         self.stopped = True
@@ -214,14 +224,3 @@ class ArmController:
                 )
             except Exception as e:
                 return f"!!! 打包AprilTag数据时出错: {e}"
-
-    def send_pegboard_target(self, row, col, reserved=0):
-        with self.send_lock:
-            if not self.serial_port:
-                return "错误: 串口不可用"
-            try:
-                payload = struct.pack(">hhh", int(row), int(col), int(reserved))
-                packet = self._create_packet(0x04, payload)
-                return self._log_and_send(f"洞洞板: Row:{row}, Col:{col}", packet)
-            except Exception as e:
-                return f"!!! 打包洞洞板数据时出错: {e}"
