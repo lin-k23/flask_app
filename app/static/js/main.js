@@ -7,6 +7,7 @@ import { initPegboard } from './modules/pegboard.js';
 import { initTracking } from './modules/tracking.js';
 // --- [核心修改] 导入新的状态管理器 ---
 import { initStateManager } from './modules/stateManager.js';
+import { initThemeSwitcher } from './modules/theme.js';
 
 // 监听'DOMContentLoaded'事件，确保在整个HTML页面都准备好之后再执行代码
 document.addEventListener('DOMContentLoaded', function () {
@@ -19,5 +20,6 @@ document.addEventListener('DOMContentLoaded', function () {
     initTracking();
     // --- [核心修改] 初始化状态管理器 ---
     initStateManager();
+    initThemeSwitcher();
     console.log("所有模块已初始化。");
 });

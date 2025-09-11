@@ -1,0 +1,59 @@
+/* app/static/css/light-theme.css */
+
+body.light-theme {
+    --bg-dark: #f0f4f8;
+    --panel-bg: #ffffff;
+    --accent-blue: #007bff;
+    --accent-cyan: #17a2b8;
+    --panel-border: #d1d9e6;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --glow-blue: 0 0 6px rgba(0, 123, 255, 0.4), 0 0 12px rgba(0, 123, 255, 0.4);
+
+    background-image:
+        linear-gradient(rgba(0, 123, 255, .07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 123, 255, .07) 1px, transparent 1px);
+}
+
+body.light-theme header {
+    text-shadow: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .grid-item {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), inset 0 0 0px rgba(0, 123, 255, 0.1);
+}
+
+body.light-theme pre,
+body.light-theme .log-box,
+body.light-theme .main-controls,
+body.light-theme .pegboard-tools,
+body.light-theme .pegboard-grid-container,
+body.light-theme .control-select {
+    background-color: #e9ecef;
+}
+
+body.light-theme .car-btn:hover,
+body.light-theme .system-btn:hover {
+    color: #ffffff;
+}
+
+body.light-theme .system-btn.btn-shutdown {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+body.light-theme .system-btn.btn-shutdown:hover {
+    background-color: #dc3545;
+    box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+    color: #ffffff;
+}
+
+body.light-theme input:checked+.slider {
+    background-color: var(--accent-blue);
+    box-shadow: var(--glow-blue);
+}
+
+body.light-theme input:checked+.slider:before {
+    background-color: #ffffff;
+}
