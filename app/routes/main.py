@@ -8,7 +8,6 @@ from .. import stop_background_threads, start_background_services
 main_bp = Blueprint("main", __name__)
 
 
-# ... (gen_frames, index, video_feed 无变化) ...
 def gen_frames(app):
     with app.app_context():
         while True:
@@ -38,12 +37,19 @@ def get_system_status():
     return jsonify(current_app.state_manager)
 
 
-@main_bp.route("/api/simulate_task1_start", methods=["POST"])
-def simulate_task1_start():
+# --- [核心修改] 新增Task1序列启动API ---
+@main_bp.route("/api/execute_task1_sequence", methods=["POST"])
+def execute_task1_sequence():
     if current_app.state_manager["status"] != "MANUAL":
-        return jsonify(status="error", message="无法开始模拟，系统正忙于自动任务"), 423
-    message = current_app.car_controller.simulate_task1_start()
-    return jsonify(status="success", message=message)
+        return jsonify(status="error", message="系统正忙，无法开始新任务"), 423
+
+    data = request.json
+    tasks = data.get("tasks")
+    if not isinstance(tasks, list) or not tasks:
+        return jsonify(status="error", message="缺少有效的 tasks 列表"), 400
+
+    response_message = current_app.arm_controller.start_task1_sequence(tasks)
+    return jsonify({"status": "success", "message": response_message})
 
 
 @main_bp.route("/api/simulate_task2_start", methods=["POST"])
@@ -60,20 +66,17 @@ def get_detection_data():
     return jsonify(data)
 
 
-# --- [核心修改] 此API现在是执行Task2的唯一入口 ---
-@main_bp.route("/api/execute_task2", methods=["POST"])
-def execute_task2():
-    # 必须在等待输入的状态下才能执行
+@main_bp.route("/api/execute_task2_sequence", methods=["POST"])
+def execute_task2_sequence():
     if current_app.state_manager["status"] != "AWAITING_TASK2_INPUT":
         return jsonify(status="error", message="系统未处于等待Task2指令的状态"), 423
 
     data = request.json
-    row, col, color_id = data.get("row"), data.get("col"), data.get("color_id")
-    if row is None or col is None or color_id is None:
-        return jsonify(status="error", message="缺少 row, col, 或 color_id"), 400
+    tasks = data.get("tasks")
+    if not isinstance(tasks, list) or not tasks:
+        return jsonify(status="error", message="缺少有效的 tasks 列表"), 400
 
-    # 发送指令
-    response_message = current_app.arm_controller.send_task2_command(row, col, color_id)
+    response_message = current_app.arm_controller.start_task2_sequence(tasks)
     return jsonify({"status": "success", "message": response_message})
 
 
@@ -89,7 +92,7 @@ def send_car_command():
     return jsonify({"status": "success", "message": f"Command '{command}' sent to car"})
 
 
-# ... (其他路由无变化) ...
+# ... (其他路由无变化, 此处省略以保持简洁) ...
 @main_bp.route("/api/set_blob_color", methods=["POST"])
 def set_blob_color():
     data = request.json

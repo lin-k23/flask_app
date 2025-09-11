@@ -1,0 +1,30 @@
+<div class="grid-item panel-task1-queue">
+    <h2>Task 1: 抓取序列构建</h2>
+    <div class="task1-controls">
+        <p>点击下方色块，按顺序添加抓取任务：</p>
+        <div class="pegboard-tools" id="task1-tools">
+            <button data-type="blue" title="抓取蓝色">
+                <span class="chip chip-blue"></span> Blue
+            </button>
+            <button data-type="yellow" title="抓取黄色">
+                <span class="chip chip-yellow"></span> Yellow
+            </button>
+            <button data-type="orange" title="抓取橙色">
+                <span class="chip chip-orange"></span> Orange
+            </button>
+            <button data-type="purple" title="抓取紫色">
+                <span class="chip chip-purple"></span> Purple
+            </button>
+        </div>
+    </div>
+    <div class="task-queue-section">
+        <h4>抓取任务队列 (<span id="task1-queue-count">0</span>)</h4>
+        <ul id="task1-queue-list">
+            <li>队列为空...</li>
+        </ul>
+        <div class="task-queue-controls">
+            <button id="btn-execute-task1-sequence" class="system-btn btn-green" disabled>开始抓取序列</button>
+            <button id="btn-clear-task1-queue" class="system-btn btn-shutdown">清空队列</button>
+        </div>
+    </div>
+</div>

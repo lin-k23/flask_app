@@ -25,6 +25,12 @@ class ArmController:
         self.VISION_SEND_INTERVAL = 0.5
         self.state_manager = state_manager
 
+        # --- [核心修改] 为 Task1 和 Task2 分别创建任务队列和当前任务跟踪 ---
+        self.task1_queue = collections.deque()
+        self.current_task1 = None
+        self.task2_queue = collections.deque()
+        self.current_task2 = None
+
         try:
             self.serial_port = uart.UART(port, baudrate)
             self.stopped = False
@@ -82,49 +88,6 @@ class ArmController:
     def get_vision_stream_status(self):
         return {"is_active": self.vision_stream_active}
 
-    def send_task1_command(self):
-        with self.send_lock:
-            if not self.serial_port:
-                return "错误: 串口不可用"
-            try:
-                task1_counter = 0
-                while task1_counter < 5:
-                    payload = struct.pack(">h", 0)
-                    packet = self._create_packet(0x10, payload)
-                    log_message = "任务指令: Task 1 (0x10)"
-                    self._log_and_send(log_message, packet)
-                    self.start_vision_streams()
-                    task1_counter = task1_counter + 1
-                return log_message
-            except Exception as e:
-                return f"!!! 打包 Task 1 指令时出错: {e}"
-
-    def send_task2_command(self, row, col, color_id):
-        with self.send_lock:
-            if not self.serial_port:
-                return "错误: 串口不可用"
-            try:
-                task2_counter = 0
-                while task2_counter < 3:
-                    payload = struct.pack(">hhh", int(row), int(col), int(color_id))
-                    packet = self._create_packet(0x11, payload)
-                    log_message = (
-                        f"任务指令: Task 2 (0x11) -> R:{row}, C:{col}, Color:{color_id}"
-                    )
-
-                    # --- [核心修改] 发送指令后，立刻切换到自动模式 ---
-                    if self.state_manager:
-                        self.state_manager["status"] = "TASK_AUTO"
-                        print(
-                            f"--- System state changed to: {self.state_manager['status']} (triggered by Pegboard click) ---"
-                        )
-                    self._log_and_send(log_message, packet)
-                    self.start_vision_streams()
-                    task2_counter = task2_counter + 1
-                return log_message
-            except Exception as e:
-                return f"!!! 打包 Task 2 指令时出错: {e}"
-
     def _read_loop(self):
         while not self.stopped:
             if self.serial_port:
@@ -143,26 +106,42 @@ class ArmController:
             time.sleep(0.01)
 
     def process_arm_message(self, message):
-        task_id_finished = None
+        # --- [核心修改] 更新消息处理逻辑以支持双任务队列 ---
         if "1end" in message:
-            task_id_finished = 1
-            print("Arm task 1 finished. Notifying car controller to send 'task1_end'.")
-            self.car_controller.send_command("task1_end")
+            print(f"Arm task 1 segment for {self.current_task1} finished.")
+            self.current_task1 = None
+
+            if self.task1_queue:
+                next_task = self.task1_queue.popleft()
+                print(f"Executing next task in T1 queue: {next_task}")
+                self._execute_single_task1(next_task["color_id"])
+            else:
+                print("Arm task 1 sequence finished. Notifying car controller.")
+                self.car_controller.send_command("task1_end")
+                self.stop_vision_streams()
+                if self.state_manager:
+                    self.state_manager["status"] = "MANUAL"
+                if self.car_controller:
+                    self.car_controller.update_task_stage(1)
 
         elif "2end" in message:
-            task_id_finished = 2
-            print("Arm task 2 finished. Notifying car controller to send 'task2_end'.")
-            self.car_controller.send_command("task2_end")
+            print(f"Arm task 2 segment for {self.current_task2} finished.")
+            self.current_task2 = None
 
-        if task_id_finished:
-            if self.state_manager:
-                self.state_manager["status"] = "MANUAL"
-                print(
-                    f"--- System state changed to: {self.state_manager['status']} (Task {task_id_finished} finished) ---"
+            if self.task2_queue:
+                next_task = self.task2_queue.popleft()
+                print(f"Executing next task in T2 queue: {next_task}")
+                self._execute_single_task2(
+                    next_task["row"], next_task["col"], next_task["color_id"]
                 )
-            self.stop_vision_streams()
-            if self.car_controller:
-                self.car_controller.update_task_stage(task_id_finished)
+            else:
+                print("Arm task 2 sequence finished. Notifying car controller.")
+                self.car_controller.send_command("task2_end")
+                self.stop_vision_streams()
+                if self.state_manager:
+                    self.state_manager["status"] = "MANUAL"
+                if self.car_controller:
+                    self.car_controller.update_task_stage(2)
 
     def stop(self):
         self.stopped = True
@@ -196,7 +175,84 @@ class ArmController:
             self.serial_port.write(bytes(packet))
         return log_message
 
+    # --- [核心修改] 新增方法，用于启动Task1任务序列 ---
+    def start_task1_sequence(self, tasks):
+        if not tasks:
+            return "错误: 任务列表为空"
+        with self.send_lock:
+            self.task1_queue.clear()
+            for task in tasks:
+                self.task1_queue.append(task)
+
+            if self.state_manager:
+                self.state_manager["status"] = "TASK_AUTO"
+                print(
+                    f"--- System state changed to: {self.state_manager['status']} (Task 1 sequence started) ---"
+                )
+
+            first_task = self.task1_queue.popleft()
+            return self._execute_single_task1(first_task["color_id"])
+
+    # --- [核心修改] 新增私有方法，用于执行单个Task1指令 ---
+    def _execute_single_task1(self, color_id):
+        if not self.serial_port:
+            return "错误: 串口不可用"
+        try:
+            self.current_task1 = {"color_id": color_id}
+            # Task1 的指令 payload 现在是 color_id
+            payload = struct.pack(">h", int(color_id))
+            packet = self._create_packet(0x10, payload)
+            log_message = f"任务指令: Task 1 (Grab) -> ColorID:{color_id}"
+
+            self._log_and_send(log_message, packet)
+            self.start_vision_streams()
+            return log_message
+        except Exception as e:
+            self.state_manager["status"] = "MANUAL"
+            self.task1_queue.clear()
+            return f"!!! 打包 Task 1 指令时出错: {e}"
+
+    # --- [核心修改] Task2序列方法重命名，以示区分 ---
+    def start_task2_sequence(self, tasks):
+        if not tasks:
+            return "错误: 任务列表为空"
+        with self.send_lock:
+            self.task2_queue.clear()
+            for task in tasks:
+                self.task2_queue.append(task)
+
+            if self.state_manager:
+                self.state_manager["status"] = "TASK_AUTO"
+                print(
+                    f"--- System state changed to: {self.state_manager['status']} (Task 2 sequence started) ---"
+                )
+
+            first_task = self.task2_queue.popleft()
+            return self._execute_single_task2(
+                first_task["row"], first_task["col"], first_task["color_id"]
+            )
+
+    def _execute_single_task2(self, row, col, color_id):
+        if not self.serial_port:
+            return "错误: 串口不可用"
+        try:
+            self.current_task2 = {"row": row, "col": col, "color_id": color_id}
+            payload = struct.pack(">hhh", int(row), int(col), int(color_id))
+            packet = self._create_packet(0x11, payload)
+            log_message = (
+                f"任务指令: Task 2 (Place) -> R:{row}, C:{col}, ColorID:{color_id}"
+            )
+
+            self._log_and_send(log_message, packet)
+            self.start_vision_streams()
+            return log_message
+        except Exception as e:
+            self.state_manager["status"] = "MANUAL"
+            self.task2_queue.clear()
+            return f"!!! 打包 Task 2 指令时出错: {e}"
+
     def send_arm_offset_and_angle_bulk(self, offset_x, offset_y, angle, color_index):
+        # ... (此方法无变化)
         with self.send_lock:
             if not self.serial_port:
                 return "错误: 串口不可用"
@@ -217,6 +273,7 @@ class ArmController:
                 return f"!!! 打包色块数据时出错: {e}"
 
     def send_april_tag_offset(self, center_x, center_y, distance):
+        # ... (此方法无变化)
         with self.send_lock:
             if not self.serial_port:
                 return "错误: 串口不可用"

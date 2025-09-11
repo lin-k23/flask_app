@@ -515,3 +515,112 @@
     color: var(--bg-dark);
     box-shadow: var(--glow-blue);
 }
+
+/* 请将以下代码追加到 app/static/css/panels.css 文件末尾 */
+
+/* --- [新增] Task 1 Queue Panel Styles --- */
+.panel-task1-queue {
+    gap: 15px;
+}
+
+.panel-task1-queue .task1-controls p {
+    margin: 0 0 10px 0;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.panel-task1-queue .pegboard-tools {
+    display: flex;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    padding: 4px;
+    gap: 4px;
+    border: 1px solid var(--panel-border);
+}
+
+.panel-task1-queue .pegboard-tools button {
+    border: 0;
+    background: transparent;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.9em;
+    cursor: pointer;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: .2s ease;
+}
+
+.panel-task1-queue .pegboard-tools button:hover {
+    background: var(--accent-cyan);
+    color: var(--bg-dark);
+}
+
+/* 复用 pegboard 的任务队列样式 */
+.panel-task1-queue .task-queue-section {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.panel-task1-queue .task-queue-section h4 {
+    margin: 0 0 10px 0;
+    color: var(--text-secondary);
+    font-size: 1em;
+    font-weight: 500;
+}
+
+.panel-task1-queue #task1-queue-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 12px 0;
+    max-height: 120px;
+    overflow-y: auto;
+    font-size: 0.9em;
+}
+
+.panel-task1-queue #task1-queue-list li {
+    padding: 6px 12px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.panel-task1-queue #task1-queue-list li:last-child {
+    border-bottom: none;
+}
+
+.panel-task1-queue #task1-queue-list .btn-remove-task {
+    background: transparent;
+    border: 1px solid #ff9800;
+    color: #ff9800;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    line-height: 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.panel-task1-queue #task1-queue-list .btn-remove-task:hover {
+    background: #ff9800;
+    color: var(--bg-dark);
+}
+
+.panel-task1-queue .task-queue-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.panel-task1-queue .task-queue-controls .system-btn {
+    flex-grow: 1;
+    padding: 8px;
+}
