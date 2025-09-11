@@ -60,6 +60,7 @@ class ArmController:
                         tag_data.get("offset_x", 0),
                         tag_data.get("offset_y", 0),
                         tag_data.get("distance", 0),
+                        tag_data.get("id", -1),  # 传入ID，如果不存在则默认为-1
                     )
             time.sleep(self.VISION_SEND_INTERVAL)
 
@@ -216,17 +217,22 @@ class ArmController:
             except Exception as e:
                 return f"!!! 打包色块数据时出错: {e}"
 
-    def send_april_tag_offset(self, center_x, center_y, distance):
+    def send_april_tag_offset(self, center_x, center_y, distance, tag_id):
         with self.send_lock:
             if not self.serial_port:
                 return "错误: 串口不可用"
             try:
                 payload = struct.pack(
-                    ">hhh", int(center_x), int(center_y), int(distance)
+                    ">hhhh",
+                    int(center_x),
+                    int(center_y),
+                    int(distance),
+                    int(tag_id),
                 )
                 packet = self._create_packet(0x02, payload)
                 return self._log_and_send(
-                    f"AprilTag: X:{center_x}, Y:{center_y}, D:{distance}", packet
+                    f"AprilTag: X:{center_x}, Y:{center_y}, D:{distance}, C:{tag_id}",
+                    packet,
                 )
             except Exception as e:
                 return f"!!! 打包AprilTag数据时出错: {e}"

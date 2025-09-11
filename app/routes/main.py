@@ -165,6 +165,7 @@ def send_vision_data():
                 tag_data.get("offset_x", 0),
                 tag_data.get("offset_y", 0),
                 tag_data.get("distance", 0),
+                tag_data.get("id", -1),  # 传入ID，如果不存在则默认为-1
             )
             status = "success"
         else:
