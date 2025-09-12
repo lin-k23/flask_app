@@ -473,9 +473,9 @@
 }
 
 #pegboard-module .hole.blue::after {
-    width: 60%;
-    height: 60%;
-    border-radius: 50%;
+    width: 70%;
+    height: 70%;
+    border-radius: 4px;
     background: #60a5fa;
     box-shadow: 0 0 8px #60a5fa;
 }
@@ -490,16 +490,16 @@
 
 #pegboard-module .hole.orange::after {
     width: 70%;
-    height: 4px;
-    border-radius: 2px;
+    height: 70%;
+    border-radius: 4px;
     background: #fb923c;
     box-shadow: 0 0 8px #fb923c;
 }
 
 #pegboard-module .hole.purple::after {
-    width: 4px;
+    width: 70%;
     height: 70%;
-    border-radius: 2px;
+    border-radius: 4px;
     background: #a78bfa;
     box-shadow: 0 0 8px #a78bfa;
 }

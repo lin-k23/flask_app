@@ -47,7 +47,9 @@ def create_app():
     start_background_services(app)
 
     from .routes.main import main_bp
+    from .routes.pegboard import pegboard_bp
 
+    app.register_blueprint(pegboard_bp)
     app.register_blueprint(main_bp)
 
     return app

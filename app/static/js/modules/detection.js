@@ -1,7 +1,7 @@
 // app/static/js/modules/detection.js
 
 export function initDetection() {
-    // ... (获取UI元素和颜色映射的代码不变) ...
+    // 获取所有需要的UI元素
     const colorBlockDataEl = document.getElementById('color-block-data');
     const apriltagDataEl = document.getElementById('apriltag-data');
     const nanotrackDataEl = document.getElementById('nanotrack-data');
@@ -10,27 +10,57 @@ export function initDetection() {
     const blobToggleSwitch = document.getElementById('toggle-blob-switch');
     const qrcodeToggleSwitch = document.getElementById('toggle-qrcode-switch');
     const blobColorSelect = document.getElementById('blob-color-select');
+    const blobColorSelectWrapper = document.getElementById('blob-color-select-wrapper');
+    const executeTask1Btn = document.getElementById('btn-execute-task1');
 
     const COLOR_HEX_MAP = {
         "blue": "#60a5fa", "yellow": "#facc15", "orange": "#fb923c", "purple": "#a78bfa",
     };
 
+    // 这个函数负责更新UI
     function updateSelectBackground(selectElement) {
         const selectedColor = selectElement.value;
         const colorHex = COLOR_HEX_MAP[selectedColor];
-        if (colorHex) {
-            selectElement.style.backgroundImage = `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="${colorHex.replace("#", "%23")}"/></svg>')`;
+
+        if (colorHex && blobColorSelectWrapper) {
+            // [需求 2] 将背景颜色应用到父容器上
+            blobColorSelectWrapper.style.backgroundColor = colorHex;
+
+            // 更新文字颜色以保证可读性
+            selectElement.style.color = '#1a202c';
+
+            // [需求 1] 移除背景小圆点图标
+            selectElement.style.backgroundImage = 'none';
         }
     }
 
     if (blobColorSelect) {
+        // 为下拉框的 'change' 事件添加监听器
         blobColorSelect.addEventListener('change', function () {
+            // 当用户选择新颜色时，立刻调用函数更新背景色
+            updateSelectBackground(this);
+
+            // 同时，将新选择的颜色通知后端视觉模块
             const selectedColor = this.value;
-            // --- [核心修改] 颜色选择现在触发 Task 1 的抓取指令 ---
+            fetch('/api/set_blob_color', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ color: selectedColor }),
+            });
+        });
+
+        // 在页面加载时，立即调用一次以设置初始颜色
+        updateSelectBackground(blobColorSelect);
+    }
+
+    if (executeTask1Btn) {
+        // “抓取”按钮的事件监听器保持不变
+        executeTask1Btn.addEventListener('click', function () {
+            const selectedColor = blobColorSelect.value;
             fetch('/api/execute_task1_grab', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ color: selectedColor }), // 发送颜色信息
+                body: JSON.stringify({ color: selectedColor }),
             })
                 .then(res => res.json())
                 .then(data => {
@@ -40,20 +70,11 @@ export function initDetection() {
                     console.log('Task 1 Grab command response:', data.message)
                 })
                 .catch(err => console.error('Failed to send Task 1 grab command:', err));
-
-            // 同时，仍然更新后台视觉算法的目标颜色
-            fetch('/api/set_blob_color', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ color: selectedColor }),
-            });
-
-            updateSelectBackground(this);
         });
-        updateSelectBackground(blobColorSelect);
     }
 
-    // ... (其他函数如 setupSwitchListener, fetchDetectionData 等保持不变) ...
+    // (文件的其余部分保持不变)
+
     function setupSwitchListener(switchElement, featureName) {
         if (!switchElement) return;
         switchElement.addEventListener('change', function () {
