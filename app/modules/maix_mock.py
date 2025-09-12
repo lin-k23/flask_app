@@ -8,7 +8,6 @@ import threading
 import struct
 
 
-# ... (MockBlob, MockAprilTag, MockImage, MockCamera 的代码无变化) ...
 class MockBlob:
     def __init__(self, x, y, w, h):
         self._cx, self._cy, self._w, self._h = x, y, w, h
@@ -64,16 +63,28 @@ class MockImage:
         self.draw = ImageDraw.Draw(self.img)
         self.COLOR_GREEN, self.COLOR_RED = "green", "red"
         self.ApriltagFamilies = type("Families", (), {"TAG36H11": "TAG36H11"})
-        self.blob_center = (width / 2, height / 2)
+        self.blob_centers = [
+            (width / 2, height / 2),
+            (width / 3, height / 3),
+            (width * 2 / 3, height * 2 / 3),
+        ]
         self.tag_center = (width / 4, height / 4)
         self.mock_blob_color_cycle = ["blue", "yellow", "orange", "purple"]
         self.current_mock_color = "blue"
 
     def _update_object_positions(self):
         t = time.time()
-        self.blob_center = (
+        self.blob_centers[0] = (
             self.width / 2 + math.sin(t * 0.8) * 50,
             self.height / 2 + math.cos(t * 0.8) * 50,
+        )
+        self.blob_centers[1] = (
+            self.width / 3 + math.sin(t * 0.6) * 40,
+            self.height / 3 + math.cos(t * 0.9) * 30,
+        )
+        self.blob_centers[2] = (
+            self.width * 2 / 3 + math.sin(t * 1.1) * 30,
+            self.height * 2 / 3 + math.cos(t * 0.7) * 40,
         )
         self.tag_center = (
             self.width / 2 + math.sin(t * 0.7) * 80,
@@ -82,10 +93,10 @@ class MockImage:
         self.current_mock_color = self.mock_blob_color_cycle[
             int(t / 3) % len(self.mock_blob_color_cycle)
         ]
-        x, y = self.blob_center
-        self.draw.ellipse(
-            (x - 15, y - 15, x + 15, y + 15), fill=self.current_mock_color
-        )
+        for x, y in self.blob_centers:
+            self.draw.ellipse(
+                (x - 15, y - 15, x + 15, y + 15), fill=self.current_mock_color
+            )
 
     def find_blobs(self, thresholds, pixels_threshold=100, merge=True):
         requested_color = "unknown"
@@ -99,9 +110,7 @@ class MockImage:
         elif first_thresh == [28, 68, 12, 52, -80, -40]:
             requested_color = "purple"
         if requested_color == self.current_mock_color:
-            return [
-                MockBlob(int(self.blob_center[0]), int(self.blob_center[1]), 30, 30)
-            ]
+            return [MockBlob(int(cx), int(cy), 30, 30) for cx, cy in self.blob_centers]
         return []
 
     def find_apriltags(self, families=None):
@@ -157,6 +166,7 @@ class MockUART:
         self.read_buffer = collections.deque(maxlen=10)
         self.write_log = []
         self.lock = threading.Lock()
+        self.stopped = False
         print(
             f"--- [MOCK] MOCK UART initialized on port {port} at {baudrate} baud. ---"
         )
@@ -165,6 +175,11 @@ class MockUART:
         with self.lock:
             print(f"--- [MOCK] Hardware on {self.port} sends: '{message}' ---")
             self.read_buffer.append(message.encode("utf-8"))
+
+    # --- [新增] 允许外部代码向此UART注入模拟消息 ---
+    def simulate_receive(self, message):
+        """Allows other parts of the simulation to inject a message into the read buffer."""
+        self._add_to_read_buffer(message)
 
     def read(self):
         with self.lock:
@@ -176,9 +191,6 @@ class MockUART:
         command = s.strip()
         self.write_log.append(command)
         print(f"--- [MOCK] Controller sends to {self.port}: '{command}' ---")
-
-        # --- [核心修改] 移除自动发送 "task2_start" 的逻辑 ---
-        # The simulation flow is now controlled by separate user clicks.
         return len(s)
 
     def write(self, b):
@@ -186,17 +198,17 @@ class MockUART:
         print(
             f"--- [MOCK] Controller sends to {self.port} (bytes): {b.hex().upper()} ---"
         )
-        if self.port == "/dev/ttyS0":
+        if self.port == "/dev/ttyS0":  # 机械臂UART
             if b.startswith(b"\xaa\x55"):
                 data_type = b[2]
-                if data_type == 0x10:  # Task 1
+                if data_type == 0x10:
                     print(
                         f"--- [MOCK] Arm received Task 1. Will send '1end' in 5 seconds. ---"
                     )
                     threading.Timer(
                         5.0, self._add_to_read_buffer, args=["1end"]
                     ).start()
-                elif data_type == 0x11:  # Task 2
+                elif data_type == 0x11:
                     print(
                         f"--- [MOCK] Arm received Task 2. Will send '2end' in 5 seconds. ---"
                     )
@@ -205,8 +217,11 @@ class MockUART:
                     ).start()
         return len(b)
 
+    def close(self):
+        self.stopped = True
 
-# ... (MockDisplay, MockNN, etc. 的代码无变化) ...
+
+# ... (剩余部分与之前相同) ...
 class MockDisplay:
     def __init__(self):
         pass

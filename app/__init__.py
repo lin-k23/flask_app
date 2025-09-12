@@ -23,10 +23,9 @@ def start_background_services(app):
     """A function to initialize and start all services."""
     print("Starting background services...")
 
-    # --- [核心修改] 增加 AWAITING_TASK2_INPUT 状态 ---
+    # --- [核心修改] 重新定义状态机以支持新的交互式逻辑 ---
     app.state_manager = {
-        "status": "MANUAL",  # MANUAL, TASK_AUTO, AWAITING_TASK2_INPUT
-        "task2_target": None,
+        "status": "MANUAL",  # MANUAL, TASK1_AWAITING_INPUT, TASK1_EXECUTING, TASK2_AWAITING_INPUT, TASK2_EXECUTING
     }
 
     app.arm_controller = ArmController(state_manager=app.state_manager)

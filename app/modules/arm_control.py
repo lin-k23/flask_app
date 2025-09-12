@@ -45,6 +45,7 @@ class ArmController:
     def _vision_stream_loop(self):
         while self.vision_stream_active and not self.stopped:
             if self.vision_processor:
+                # ... (Vision data sending logic remains the same)
                 latest_data = self.vision_processor.get_latest_data()
                 blob_data = latest_data.get("color_block")
                 if blob_data and blob_data.get("detected"):
@@ -60,7 +61,7 @@ class ArmController:
                         tag_data.get("offset_x", 0),
                         tag_data.get("offset_y", 0),
                         tag_data.get("distance", 0),
-                        tag_data.get("id", -1),  # 传入ID，如果不存在则默认为-1
+                        tag_data.get("id", -1),
                     )
             time.sleep(self.VISION_SEND_INTERVAL)
 
@@ -83,19 +84,20 @@ class ArmController:
     def get_vision_stream_status(self):
         return {"is_active": self.vision_stream_active}
 
+    # --- [核心修改] 简化为直接的指令发送函数 ---
     def send_task1_command(self):
         with self.send_lock:
             if not self.serial_port:
                 return "错误: 串口不可用"
             try:
-                task1_counter = 0
-                while task1_counter < 5:
-                    payload = struct.pack(">h", 0)
-                    packet = self._create_packet(0x10, payload)
-                    log_message = "任务指令: Task 1 (0x10)"
-                    self._log_and_send(log_message, packet)
-                    self.start_vision_streams()
-                    task1_counter = task1_counter + 1
+                self.state_manager["status"] = "TASK1_EXECUTING"
+                print(
+                    f"--- System state changed to: {self.state_manager['status']} ---"
+                )
+                payload = struct.pack(">h", 0)
+                packet = self._create_packet(0x10, payload)
+                log_message = "任务指令: Task 1 (Grab)"
+                self._log_and_send(log_message, packet)
                 return log_message
             except Exception as e:
                 return f"!!! 打包 Task 1 指令时出错: {e}"
@@ -105,23 +107,16 @@ class ArmController:
             if not self.serial_port:
                 return "错误: 串口不可用"
             try:
-                task2_counter = 0
-                while task2_counter < 3:
-                    payload = struct.pack(">hhh", int(row), int(col), int(color_id))
-                    packet = self._create_packet(0x11, payload)
-                    log_message = (
-                        f"任务指令: Task 2 (0x11) -> R:{row}, C:{col}, Color:{color_id}"
-                    )
-
-                    # --- [核心修改] 发送指令后，立刻切换到自动模式 ---
-                    if self.state_manager:
-                        self.state_manager["status"] = "TASK_AUTO"
-                        print(
-                            f"--- System state changed to: {self.state_manager['status']} (triggered by Pegboard click) ---"
-                        )
-                    self._log_and_send(log_message, packet)
-                    self.start_vision_streams()
-                    task2_counter = task2_counter + 1
+                self.state_manager["status"] = "TASK2_EXECUTING"
+                print(
+                    f"--- System state changed to: {self.state_manager['status']} ---"
+                )
+                payload = struct.pack(">hhh", int(row), int(col), int(color_id))
+                packet = self._create_packet(0x11, payload)
+                log_message = (
+                    f"任务指令: Task 2 (Place) -> R:{row}, C:{col}, Color:{color_id}"
+                )
+                self._log_and_send(log_message, packet)
                 return log_message
             except Exception as e:
                 return f"!!! 打包 Task 2 指令时出错: {e}"
@@ -143,27 +138,23 @@ class ArmController:
                     time.sleep(1)
             time.sleep(0.01)
 
+    # --- [核心修改] 收到机械臂完成信号后，将系统切换回等待用户输入的状态 ---
     def process_arm_message(self, message):
-        task_id_finished = None
         if "1end" in message:
-            task_id_finished = 1
-            print("Arm task 1 finished. Notifying car controller to send 'task1_end'.")
-            self.car_controller.send_command("task1_end")
+            print("Arm Task 1 (Grab) action finished.")
+            if self.state_manager:
+                self.state_manager["status"] = "TASK1_AWAITING_INPUT"
+                print(
+                    f"--- System state changed to: {self.state_manager['status']} ---"
+                )
 
         elif "2end" in message:
-            task_id_finished = 2
-            print("Arm task 2 finished. Notifying car controller to send 'task2_end'.")
-            self.car_controller.send_command("task2_end")
-
-        if task_id_finished:
+            print("Arm Task 2 (Place) action finished.")
             if self.state_manager:
-                self.state_manager["status"] = "MANUAL"
+                self.state_manager["status"] = "TASK2_AWAITING_INPUT"
                 print(
-                    f"--- System state changed to: {self.state_manager['status']} (Task {task_id_finished} finished) ---"
+                    f"--- System state changed to: {self.state_manager['status']} ---"
                 )
-            self.stop_vision_streams()
-            if self.car_controller:
-                self.car_controller.update_task_stage(task_id_finished)
 
     def stop(self):
         self.stopped = True
@@ -203,11 +194,7 @@ class ArmController:
                 return "错误: 串口不可用"
             try:
                 payload = struct.pack(
-                    ">hhhh",
-                    int(offset_x),
-                    int(offset_y),
-                    int(angle),
-                    int(color_index),
+                    ">hhhh", int(offset_x), int(offset_y), int(angle), int(color_index)
                 )
                 packet = self._create_packet(0x01, payload)
                 return self._log_and_send(
@@ -223,11 +210,7 @@ class ArmController:
                 return "错误: 串口不可用"
             try:
                 payload = struct.pack(
-                    ">hhhh",
-                    int(center_x),
-                    int(center_y),
-                    int(distance),
-                    int(tag_id),
+                    ">hhhh", int(center_x), int(center_y), int(distance), int(tag_id)
                 )
                 packet = self._create_packet(0x02, payload)
                 return self._log_and_send(

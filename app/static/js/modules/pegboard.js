@@ -11,18 +11,10 @@ export function initPegboard() {
         return;
     }
 
-    // --- [核心修改] 颜色名称到ID的映射，与 vision.py 保持一致 ---
-    const COLOR_MAP = {
-        "blue": 0,
-        "yellow": 1,
-        "orange": 2,
-        "purple": 3,
-    };
-    // 用于UI显示的颜色类型
+    const COLOR_MAP = { "blue": 0, "yellow": 1, "orange": 2, "purple": 3 };
     const COLOR_TYPES = ["blue", "yellow", "orange", "purple"];
-
     let board = Array.from({ length: rows }, () => Array(cols).fill(0));
-    let currentType = "blue"; // 默认选择蓝色
+    let currentType = "blue";
 
     tools.addEventListener("click", (e) => {
         const btn = e.target.closest("button");
@@ -32,16 +24,20 @@ export function initPegboard() {
         btn.classList.add("active");
     });
 
-    // --- [核心修改] 此函数现在是执行Task2的唯一入口 ---
-    function executeTask2(row, col) {
-        const colorId = COLOR_MAP[currentType];
+    // --- [核心修改] 此函数现在调用新的 Task 2 place API ---
+    function executeTask2Place(row, col) {
+        if (currentType === "erase") {
+            // 如果是擦除模式，则不发送指令
+            return;
+        }
 
+        const colorId = COLOR_MAP[currentType];
         if (colorId === undefined) {
             alert(`错误：未知的颜色类型 '${currentType}'`);
             return;
         }
 
-        fetch("/api/execute_task2", {
+        fetch("/api/execute_task2_place", { // API endpoint a fost modificat
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ row: row, col: col, color_id: colorId })
@@ -49,22 +45,21 @@ export function initPegboard() {
             .then(res => res.json())
             .then(data => {
                 if (data.status !== 'success') {
-                    alert(data.message);
+                    alert(`指令发送失败: ${data.message}`);
                 }
-                console.log("Execute Task 2 response:", data)
+                console.log("Execute Task 2 Place response:", data)
             })
             .catch(error => console.error("执行Task 2失败:", error));
     }
 
+    // ... (函数 paintHole, syncToBackend, renderBoard 保持不变) ...
     function paintHole(element, state) {
         element.classList.toggle("active", !!state && state !== 0);
-        // 移除所有颜色相关的class
         COLOR_TYPES.forEach(type => element.classList.remove(type));
-
         if (state && typeof state === 'string') {
             element.dataset.t = state;
             if (COLOR_TYPES.includes(state)) {
-                element.classList.add(state); // 添加对应的颜色class
+                element.classList.add(state);
             }
         } else {
             element.removeAttribute("data-t");
@@ -94,14 +89,13 @@ export function initPegboard() {
                 const handlePaint = () => {
                     const newState = (currentType === "erase") ? 0 : currentType;
                     const oldState = board[r][c];
+                    // --- [核心修改] 只有在状态改变时才执行 ---
                     if (newState !== oldState) {
                         board[r][c] = newState;
                         paintHole(hole, newState);
                         syncToBackend(r, c, newState);
-                        // --- [核心修改] 点击后直接执行Task 2 ---
-                        if (newState !== 0) {
-                            executeTask2(r, c);
-                        }
+                        // 点击后直接执行Task 2 放置指令
+                        executeTask2Place(r, c);
                     }
                 };
 

@@ -4,9 +4,9 @@ export function initSystemControls() {
     const btnRefresh = document.getElementById('btn-refresh-page');
     const btnRestart = document.getElementById('btn-soft-restart');
     const btnShutdown = document.getElementById('btn-shutdown');
-    // --- [核心修改] 更新按钮ID ---
     const btnSimulate1 = document.getElementById('btn-simulate-task1');
     const btnSimulate2 = document.getElementById('btn-simulate-task2');
+    const btnFinishTask = document.getElementById('btn-finish-task');
 
     btnRefresh.addEventListener('click', () => {
         location.reload();
@@ -37,7 +37,6 @@ export function initSystemControls() {
         }
     });
 
-    // --- [核心修改] 分别为两个按钮添加事件 ---
     btnSimulate1.addEventListener('click', () => {
         console.log("Attempting to start task 1 simulation...");
         fetch('/api/simulate_task1_start', { method: 'POST' })
@@ -64,5 +63,17 @@ export function initSystemControls() {
                 }
             })
             .catch(err => alert('启动模拟2失败:', err));
+    });
+
+    // --- [新增] 为结束任务按钮添加事件 ---
+    btnFinishTask.addEventListener('click', () => {
+        if (confirm('您确定要结束当前阶段的所有任务吗？')) {
+            fetch('/api/finish_current_task', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message);
+                })
+                .catch(err => alert('结束任务失败:', err));
+        }
     });
 }

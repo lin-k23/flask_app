@@ -83,22 +83,22 @@ class CarController:
         if not self.arm_controller:
             return
 
+        # --- [核心修改] 收到小车指令后，切换系统至等待用户输入的状态 ---
         if "task1_start" in message and self.task_stage == 1:
             if self.state_manager:
-                self.state_manager["status"] = "TASK_AUTO"
+                self.state_manager["status"] = "TASK1_AWAITING_INPUT"
                 print(
-                    f"--- System state changed to: {self.state_manager['status']} (triggered by Task 1) ---"
+                    f"--- System state changed to: {self.state_manager['status']}. Waiting for user to select a color. ---"
                 )
-            print("Received task1_start. Commanding arm to start Task 1 (0x10).")
-            self.arm_controller.send_task1_command()
+            self.arm_controller.start_vision_streams()
 
-        # --- [核心修改] 收到task2_start后，只改变状态，等待用户输入 ---
         elif "task2_start" in message and self.task_stage == 2:
             if self.state_manager:
-                self.state_manager["status"] = "AWAITING_TASK2_INPUT"
+                self.state_manager["status"] = "TASK2_AWAITING_INPUT"
                 print(
                     f"--- System state changed to: {self.state_manager['status']}. Waiting for user on pegboard. ---"
                 )
+            self.arm_controller.start_vision_streams()
 
     def update_task_stage(self, task_id_finished):
         """Called by arm_controller to keep the car's state machine in sync."""

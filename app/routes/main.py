@@ -8,7 +8,7 @@ from .. import stop_background_threads, start_background_services
 main_bp = Blueprint("main", __name__)
 
 
-# ... (gen_frames, index, video_feed 无变化) ...
+# --- [已修复] 重新添加 gen_frames 函数 ---
 def gen_frames(app):
     with app.app_context():
         while True:
@@ -41,7 +41,7 @@ def get_system_status():
 @main_bp.route("/api/simulate_task1_start", methods=["POST"])
 def simulate_task1_start():
     if current_app.state_manager["status"] != "MANUAL":
-        return jsonify(status="error", message="无法开始模拟，系统正忙于自动任务"), 423
+        return jsonify(status="error", message="系统正忙"), 423
     message = current_app.car_controller.simulate_task1_start()
     return jsonify(status="success", message=message)
 
@@ -49,32 +49,64 @@ def simulate_task1_start():
 @main_bp.route("/api/simulate_task2_start", methods=["POST"])
 def simulate_task2_start():
     if current_app.state_manager["status"] != "MANUAL":
-        return jsonify(status="error", message="无法开始模拟，系统正忙于自动任务"), 423
+        return jsonify(status="error", message="系统正忙"), 423
     message = current_app.car_controller.simulate_task2_start()
     return jsonify(status="success", message=message)
 
 
-@main_bp.route("/api/detection_data", methods=["GET"])
-def get_detection_data():
-    data = current_app.vision_processor.get_latest_data()
-    return jsonify(data)
+@main_bp.route("/api/execute_task1_grab", methods=["POST"])
+def execute_task1_grab():
+    if current_app.state_manager["status"] != "TASK1_AWAITING_INPUT":
+        return jsonify(status="error", message="系统未处于Task1等待指令状态"), 423
+
+    response_message = current_app.arm_controller.send_task1_command()
+    return jsonify({"status": "success", "message": response_message})
 
 
-# --- [核心修改] 此API现在是执行Task2的唯一入口 ---
-@main_bp.route("/api/execute_task2", methods=["POST"])
-def execute_task2():
-    # 必须在等待输入的状态下才能执行
-    if current_app.state_manager["status"] != "AWAITING_TASK2_INPUT":
-        return jsonify(status="error", message="系统未处于等待Task2指令的状态"), 423
+@main_bp.route("/api/execute_task2_place", methods=["POST"])
+def execute_task2_place():
+    if current_app.state_manager["status"] != "TASK2_AWAITING_INPUT":
+        return jsonify(status="error", message="系统未处于Task2等待指令状态"), 423
 
     data = request.json
     row, col, color_id = data.get("row"), data.get("col"), data.get("color_id")
     if row is None or col is None or color_id is None:
         return jsonify(status="error", message="缺少 row, col, 或 color_id"), 400
 
-    # 发送指令
     response_message = current_app.arm_controller.send_task2_command(row, col, color_id)
     return jsonify({"status": "success", "message": response_message})
+
+
+@main_bp.route("/api/finish_current_task", methods=["POST"])
+def finish_current_task():
+    car = current_app.car_controller
+    state_manager = current_app.state_manager
+    status = state_manager["status"]
+
+    if status in ["TASK1_AWAITING_INPUT", "TASK1_EXECUTING"]:
+        print("Web command: Finishing Task 1.")
+        car.send_command("task1_end")
+        car.update_task_stage(1)
+        state_manager["status"] = "MANUAL"
+        current_app.arm_controller.stop_vision_streams()
+        message = "Task 1 finished by web command."
+    elif status in ["TASK2_AWAITING_INPUT", "TASK2_EXECUTING"]:
+        print("Web command: Finishing Task 2.")
+        car.send_command("task2_end")
+        car.update_task_stage(2)
+        state_manager["status"] = "MANUAL"
+        current_app.arm_controller.stop_vision_streams()
+        message = "Task 2 finished by web command."
+    else:
+        return jsonify(status="error", message="系统当前不处于可结束的任务状态"), 423
+
+    return jsonify({"status": "success", "message": message})
+
+
+@main_bp.route("/api/detection_data", methods=["GET"])
+def get_detection_data():
+    data = current_app.vision_processor.get_latest_data()
+    return jsonify(data)
 
 
 @main_bp.route("/api/send_car_command", methods=["POST"])
@@ -89,7 +121,6 @@ def send_car_command():
     return jsonify({"status": "success", "message": f"Command '{command}' sent to car"})
 
 
-# ... (其他路由无变化) ...
 @main_bp.route("/api/set_blob_color", methods=["POST"])
 def set_blob_color():
     data = request.json
@@ -134,78 +165,6 @@ def toggle_arm_vision_stream():
     return jsonify({"status": "success", "message": message})
 
 
-@main_bp.route("/api/send_vision_data", methods=["POST"])
-def send_vision_data():
-    req_data = request.json
-    vision_data_type = req_data.get("type")
-    latest_vision_data = current_app.vision_processor.get_latest_data()
-    response_message = ""
-    status = "error"
-
-    if vision_data_type == "color_block":
-        blob_data = latest_vision_data.get("color_block")
-        if blob_data and blob_data.get("detected"):
-            response_message = (
-                current_app.arm_controller.send_arm_offset_and_angle_bulk(
-                    blob_data.get("offset_x", 0),
-                    blob_data.get("offset_y", 0),
-                    blob_data.get("angle", 0),
-                    blob_data.get("color_index", 0),
-                )
-            )
-            status = "success"
-        else:
-            response_message = "未检测到色块，不发送"
-            status = "info"
-
-    elif vision_data_type == "apriltag":
-        tag_data = latest_vision_data.get("apriltag")
-        if tag_data and tag_data.get("detected"):
-            response_message = current_app.arm_controller.send_april_tag_offset(
-                tag_data.get("offset_x", 0),
-                tag_data.get("offset_y", 0),
-                tag_data.get("distance", 0),
-                tag_data.get("id", -1),  # 传入ID，如果不存在则默认为-1
-            )
-            status = "success"
-        else:
-            response_message = "未检测到AprilTag，不发送"
-            status = "info"
-    else:
-        response_message = "无效的数据类型"
-    return jsonify({"status": status, "message": response_message})
-
-
-@main_bp.route("/api/car_status", methods=["GET"])
-def get_car_status():
-    log = current_app.car_controller.get_received_log()
-    return jsonify({"log": log})
-
-
-@main_bp.route("/api/car_sent_log", methods=["GET"])
-def get_car_sent_log():
-    log = current_app.car_controller.get_sent_log()
-    return jsonify({"log": log})
-
-
-@main_bp.route("/api/toggle_vision_feature", methods=["POST"])
-def toggle_vision_feature():
-    data = request.json
-    feature = data.get("feature")
-    enabled = data.get("enabled")
-    if feature == "color_block":
-        status = current_app.vision_processor.set_blob_detection_status(enabled)
-        return jsonify(
-            {"status": "success", "message": f"Color block detection set to {status}"}
-        )
-    elif feature == "qrcode":
-        status = current_app.vision_processor.set_qrcode_detection_status(enabled)
-        return jsonify(
-            {"status": "success", "message": f"QRCode detection set to {status}"}
-        )
-    return jsonify({"status": "error", "message": "Unknown feature"}), 400
-
-
 @main_bp.route("/api/soft_restart", methods=["POST"])
 def soft_restart():
     app = current_app._get_current_object()
@@ -223,6 +182,7 @@ def shutdown():
     return jsonify({"status": "success", "message": "服务正在关闭..."})
 
 
+# --- [已修复] 重新添加 start_tracking 和 stop_tracking 路由 ---
 @main_bp.route("/api/start_tracking", methods=["POST"])
 def start_tracking():
     data = request.json

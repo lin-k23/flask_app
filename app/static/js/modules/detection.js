@@ -1,7 +1,7 @@
 // app/static/js/modules/detection.js
 
 export function initDetection() {
-    // --- 获取UI元素 ---
+    // ... (获取UI元素和颜色映射的代码不变) ...
     const colorBlockDataEl = document.getElementById('color-block-data');
     const apriltagDataEl = document.getElementById('apriltag-data');
     const nanotrackDataEl = document.getElementById('nanotrack-data');
@@ -11,20 +11,14 @@ export function initDetection() {
     const qrcodeToggleSwitch = document.getElementById('toggle-qrcode-switch');
     const blobColorSelect = document.getElementById('blob-color-select');
 
-    // --- [新增] 定义颜色到CSS颜色的映射 ---
     const COLOR_HEX_MAP = {
-        "blue": "#60a5fa",
-        "yellow": "#facc15",
-        "orange": "#fb923c",
-        "purple": "#a78bfa",
+        "blue": "#60a5fa", "yellow": "#facc15", "orange": "#fb923c", "purple": "#a78bfa",
     };
 
-    // --- [新增] 更新下拉框背景色的函数 ---
     function updateSelectBackground(selectElement) {
         const selectedColor = selectElement.value;
         const colorHex = COLOR_HEX_MAP[selectedColor];
         if (colorHex) {
-            // 使用内联样式来动态改变背景（小圆点）
             selectElement.style.backgroundImage = `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="${colorHex.replace("#", "%23")}"/></svg>')`;
         }
     }
@@ -32,19 +26,34 @@ export function initDetection() {
     if (blobColorSelect) {
         blobColorSelect.addEventListener('change', function () {
             const selectedColor = this.value;
+            // --- [核心修改] 颜色选择现在触发 Task 1 的抓取指令 ---
+            fetch('/api/execute_task1_grab', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ color: selectedColor }), // 发送颜色信息
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status !== 'success') {
+                        alert(`指令发送失败: ${data.message}`);
+                    }
+                    console.log('Task 1 Grab command response:', data.message)
+                })
+                .catch(err => console.error('Failed to send Task 1 grab command:', err));
+
+            // 同时，仍然更新后台视觉算法的目标颜色
             fetch('/api/set_blob_color', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ color: selectedColor }),
-            })
-                .then(res => res.json())
-                .then(data => console.log(data.message))
-                .catch(err => console.error('Failed to set blob color:', err));
+            });
+
             updateSelectBackground(this);
         });
         updateSelectBackground(blobColorSelect);
     }
 
+    // ... (其他函数如 setupSwitchListener, fetchDetectionData 等保持不变) ...
     function setupSwitchListener(switchElement, featureName) {
         if (!switchElement) return;
         switchElement.addEventListener('change', function () {
@@ -54,43 +63,17 @@ export function initDetection() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ feature: featureName, enabled: isEnabled }),
             })
-                .then(res => res.json())
-                .then(data => {
-                    if (featureName === 'color_block') {
-                        updateUiState(colorBlockDataEl, isEnabled);
-                    } else if (featureName === 'qrcode') {
-                        updateUiState(qrcodeDataEl, isEnabled);
-                    }
-                });
         });
     }
 
     setupSwitchListener(blobToggleSwitch, 'color_block');
     setupSwitchListener(qrcodeToggleSwitch, 'qrcode');
 
-    function updateUiState(element, isEnabled, defaultText = '等待数据...') {
-        if (!element) return;
-        const parentBox = element.closest('.data-box');
-        if (!parentBox) return;
-
-        if (isEnabled) {
-            element.textContent = defaultText;
-            parentBox.style.opacity = '1';
-        } else {
-            element.textContent = '已禁用';
-            parentBox.style.opacity = '0.5';
-        }
-    }
-
     function formatJsonPayload(payload) {
         try {
             const data = JSON.parse(payload);
-            return Object.entries(data)
-                .map(([key, value]) => `${key}: ${value}`)
-                .join('\n');
-        } catch (e) {
-            return payload;
-        }
+            return Object.entries(data).map(([key, value]) => `${key}: ${value}`).join('\n');
+        } catch (e) { return payload; }
     }
 
     function fetchDetectionData() {
@@ -106,7 +89,6 @@ export function initDetection() {
                         nanotrackPanel.style.display = 'none';
                     }
                 }
-
                 if (blobToggleSwitch && colorBlockDataEl && blobToggleSwitch.checked) {
                     if (data.color_block && data.color_block.detected) {
                         const cb = data.color_block;
@@ -115,7 +97,6 @@ export function initDetection() {
                         colorBlockDataEl.textContent = '未检测到';
                     }
                 }
-
                 if (apriltagDataEl) {
                     if (data.apriltag && data.apriltag.detected) {
                         const tag = data.apriltag;
@@ -124,7 +105,6 @@ export function initDetection() {
                         apriltagDataEl.textContent = '未检测到';
                     }
                 }
-
                 if (qrcodeToggleSwitch && qrcodeDataEl && qrcodeToggleSwitch.checked) {
                     if (data.qrcode && data.qrcode.detected) {
                         qrcodeDataEl.textContent = formatJsonPayload(data.qrcode.payload);
@@ -135,8 +115,5 @@ export function initDetection() {
             })
             .catch(error => console.error('获取检测数据失败:', error));
     }
-
     setInterval(fetchDetectionData, 200);
-    updateUiState(colorBlockDataEl, blobToggleSwitch ? blobToggleSwitch.checked : false);
-    updateUiState(qrcodeDataEl, qrcodeToggleSwitch ? qrcodeToggleSwitch.checked : false);
 }

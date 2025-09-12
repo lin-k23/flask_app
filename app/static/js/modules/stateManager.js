@@ -4,44 +4,70 @@ const MANAGED_COMPONENTS = {
     carControls: document.querySelector('.panel-car-control'),
     pegboard: document.getElementById('pegboard-module'),
     systemSim: document.querySelector('.panel-system-controls'),
+    btnFinishTask: document.getElementById('btn-finish-task'),
+    colorSelect: document.getElementById('blob-color-select'), // Task 1 control
 };
 
 function updateUiLockState(status) {
     const isManual = status === 'MANUAL';
-    const isAwaitingInput = status === 'AWAITING_TASK2_INPUT';
+    const isTask1Active = status.startsWith('TASK1');
+    const isTask2Active = status.startsWith('TASK2');
+    const isAwaitingInput = status.endsWith('AWAITING_INPUT');
+    const isExecuting = status.endsWith('EXECUTING');
 
-    // 锁定/解锁小车控制
+    // --- [核心修改] 根据新的状态模型全面管理UI ---
+
+    // 1. 锁定/解锁小车手动控制
     if (MANAGED_COMPONENTS.carControls) {
         const fieldset = MANAGED_COMPONENTS.carControls.querySelector('.main-controls');
         if (fieldset) fieldset.disabled = !isManual;
     }
 
-    // --- [核心修改] 根据新状态锁定/解锁洞洞板 ---
-    if (MANAGED_COMPONENTS.pegboard) {
-        const pegboardRoot = MANAGED_COMPONENTS.pegboard.querySelector('#pegboard');
-        // 只有在等待输入时才解锁
-        if (pegboardRoot) pegboardRoot.classList.toggle('disabled', !isAwaitingInput);
+    // 2. 锁定/解锁 Task 1 的颜色选择器
+    if (MANAGED_COMPONENTS.colorSelect) {
+        // 只有在等待Task1输入时才可操作
+        MANAGED_COMPONENTS.colorSelect.disabled = !(status === 'TASK1_AWAITING_INPUT');
     }
 
-    // 锁定/解锁模拟按钮
+    // 3. 锁定/解锁 Task 2 的洞洞板
+    if (MANAGED_COMPONENTS.pegboard) {
+        const pegboardRoot = MANAGED_COMPONENTS.pegboard.querySelector('#pegboard');
+        if (pegboardRoot) {
+            // 只有在等待Task2输入时才可操作
+            pegboardRoot.classList.toggle('disabled', !(status === 'TASK2_AWAITING_INPUT'));
+        }
+    }
+
+    // 4. 锁定/解锁模拟按钮
     if (MANAGED_COMPONENTS.systemSim) {
         const btnSim1 = MANAGED_COMPONENTS.systemSim.querySelector('#btn-simulate-task1');
         const btnSim2 = MANAGED_COMPONENTS.systemSim.querySelector('#btn-simulate-task2');
         if (btnSim1) btnSim1.disabled = !isManual;
-        // Task2模拟按钮也只在手动模式下可用
         if (btnSim2) btnSim2.disabled = !isManual;
     }
 
-    // 更新标题状态
+    // 5. 控制“结束任务”按钮的可见性
+    if (MANAGED_COMPONENTS.btnFinishTask) {
+        // 在任何一个任务阶段（等待或执行中）都显示
+        MANAGED_COMPONENTS.btnFinishTask.style.display = (isTask1Active || isTask2Active) ? 'block' : 'none';
+    }
+
+    // 6. 更新标题状态
     const header = document.querySelector('header h1');
     if (header) {
-        if (isAwaitingInput) {
-            header.textContent = "MaixPy 集成控制面板 (请在洞洞板上选择Task2的目标点)";
-            header.style.color = "#00aaff"; // 蓝色提示
-        } else if (status === 'TASK_AUTO') {
-            header.textContent = "MaixPy 集成控制面板 (自动任务执行中...)";
+        if (status === 'TASK1_AWAITING_INPUT') {
+            header.textContent = "MaixPy 集成控制面板 (Task 1: 请选择要抓取的色块颜色)";
+            header.style.color = "#00aaff";
+        } else if (status === 'TASK1_EXECUTING') {
+            header.textContent = "MaixPy 集成控制面板 (Task 1: 机械臂抓取中...)";
             header.style.color = "#ff9800";
-        } else {
+        } else if (status === 'TASK2_AWAITING_INPUT') {
+            header.textContent = "MaixPy 集成控制面板 (Task 2: 请在洞洞板上选择目标点)";
+            header.style.color = "#00aaff";
+        } else if (status === 'TASK2_EXECUTING') {
+            header.textContent = "MaixPy 集成控制面板 (Task 2: 机械臂放置中...)";
+            header.style.color = "#ff9800";
+        } else { // MANUAL
             header.textContent = "MaixPy 集成控制面板";
             header.style.color = "";
         }
@@ -64,5 +90,5 @@ async function fetchSystemStatus() {
 
 export function initStateManager() {
     console.log("State Manager initialized.");
-    setInterval(fetchSystemStatus, 1000);
+    setInterval(fetchSystemStatus, 500); // 提高刷新率以获得更及时的UI更新
 }
