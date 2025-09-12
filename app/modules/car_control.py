@@ -62,22 +62,37 @@ class CarController:
     def simulate_task1_start(self):
         """Simulates receiving 'task1_start' from the car."""
         print("--- [SIMULATION] Manually triggering Task 1 start ---")
+        if not self.arm_controller:
+            return "Arm controller not available for simulation."
+        self.arm_controller.send_task1_command()
         simulated_message = f"[{time.strftime('%H:%M:%S')}] [SIMULATION] task1_start"
         with self.reader_lock:
             self.received_log.append(simulated_message)
-        self.process_task_message("task1_start")
         return "Task 1 simulation started."
 
     def simulate_task2_start(self):
-        """Simulates receiving 'task2_start' from the car."""
-        if self.task_stage != 2:
-            return f"Task 2 cannot be started. System is not in the correct stage (Current stage: {self.task_stage})."
-        print("--- [SIMULATION] Manually triggering Task 2 start ---")
-        simulated_message = f"[{time.strftime('%H:%M:%S')}] [SIMULATION] task2_start"
+        """Simulates task2 by sending a direct command to the arm."""
+        if not self.arm_controller:
+            return "Arm controller not available for simulation."
+
+        print(
+            "--- [SIMULATION] Manually triggering Task 2 and sending direct command to arm ---"
+        )
+
+        # Define test parameters for Task 2
+        test_row = 2
+        test_col = 2
+        test_color_id = 2  # Corresponds to "yellow" in vision.py
+
+        # Directly command the arm to start Task 2 with test parameters
+        self.arm_controller.send_task2_command(test_row, test_col, test_color_id)
+
+        # Log the simulation action
+        simulated_message = f"[{time.strftime('%H:%M:%S')}] [SIMULATION] Task 2 started with test parameters (R:{test_row}, C:{test_col}, ColorID:{test_color_id})"
         with self.reader_lock:
             self.received_log.append(simulated_message)
-        self.process_task_message("task2_start")
-        return "Task 2 simulation started. Pegboard is now active."
+
+        return "Task 2 simulation with direct arm communication has been initiated."
 
     def process_task_message(self, message):
         if not self.arm_controller:

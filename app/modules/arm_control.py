@@ -105,23 +105,20 @@ class ArmController:
             if not self.serial_port:
                 return "错误: 串口不可用"
             try:
-                task2_counter = 0
-                while task2_counter < 3:
-                    payload = struct.pack(">hhh", int(row), int(col), int(color_id))
-                    packet = self._create_packet(0x11, payload)
-                    log_message = (
-                        f"任务指令: Task 2 (0x11) -> R:{row}, C:{col}, Color:{color_id}"
-                    )
+                payload = struct.pack(">hhh", int(row), int(col), int(color_id))
+                packet = self._create_packet(0x11, payload)
+                log_message = (
+                    f"任务指令: Task 2 (0x11) -> R:{row}, C:{col}, Color:{color_id}"
+                )
 
-                    # --- [核心修改] 发送指令后，立刻切换到自动模式 ---
-                    if self.state_manager:
-                        self.state_manager["status"] = "TASK_AUTO"
-                        print(
-                            f"--- System state changed to: {self.state_manager['status']} (triggered by Pegboard click) ---"
-                        )
-                    self._log_and_send(log_message, packet)
-                    self.start_vision_streams()
-                    task2_counter = task2_counter + 1
+                # --- [核心修改] 发送指令后，立刻切换到自动模式 ---
+                if self.state_manager:
+                    self.state_manager["status"] = "TASK_AUTO"
+                    print(
+                        f"--- System state changed to: {self.state_manager['status']} (triggered by Pegboard click) ---"
+                    )
+                self._log_and_send(log_message, packet)
+                self.start_vision_streams()
                 return log_message
             except Exception as e:
                 return f"!!! 打包 Task 2 指令时出错: {e}"

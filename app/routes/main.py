@@ -40,16 +40,14 @@ def get_system_status():
 
 @main_bp.route("/api/simulate_task1_start", methods=["POST"])
 def simulate_task1_start():
-    if current_app.state_manager["status"] != "MANUAL":
-        return jsonify(status="error", message="无法开始模拟，系统正忙于自动任务"), 423
+    # 移除状态检查
     message = current_app.car_controller.simulate_task1_start()
     return jsonify(status="success", message=message)
 
 
 @main_bp.route("/api/simulate_task2_start", methods=["POST"])
 def simulate_task2_start():
-    if current_app.state_manager["status"] != "MANUAL":
-        return jsonify(status="error", message="无法开始模拟，系统正忙于自动任务"), 423
+    # 移除状态检查
     message = current_app.car_controller.simulate_task2_start()
     return jsonify(status="success", message=message)
 

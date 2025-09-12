@@ -23,13 +23,12 @@ function updateUiLockState(status) {
         if (pegboardRoot) pegboardRoot.classList.toggle('disabled', !isAwaitingInput);
     }
 
-    // 锁定/解锁模拟按钮
+    // [核心修改] 模拟按钮不再被禁用
     if (MANAGED_COMPONENTS.systemSim) {
         const btnSim1 = MANAGED_COMPONENTS.systemSim.querySelector('#btn-simulate-task1');
         const btnSim2 = MANAGED_COMPONENTS.systemSim.querySelector('#btn-simulate-task2');
-        if (btnSim1) btnSim1.disabled = !isManual;
-        // Task2模拟按钮也只在手动模式下可用
-        if (btnSim2) btnSim2.disabled = !isManual;
+        if (btnSim1) btnSim1.disabled = false;
+        if (btnSim2) btnSim2.disabled = false;
     }
 
     // 更新标题状态
