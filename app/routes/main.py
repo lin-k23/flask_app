@@ -8,7 +8,6 @@ from .. import stop_background_threads, start_background_services
 main_bp = Blueprint("main", __name__)
 
 
-# --- [已修复] 重新添加 gen_frames 函数 ---
 def gen_frames(app):
     with app.app_context():
         while True:
@@ -38,20 +37,40 @@ def get_system_status():
     return jsonify(current_app.state_manager)
 
 
-@main_bp.route("/api/simulate_task1_start", methods=["POST"])
-def simulate_task1_start():
-    if current_app.state_manager["status"] != "MANUAL":
-        return jsonify(status="error", message="系统正忙"), 423
-    message = current_app.car_controller.simulate_task1_start()
-    return jsonify(status="success", message=message)
+# --- [核心修改] Task 1 调试按钮功能保持不变 ---
+@main_bp.route("/api/debug_task1_direct", methods=["POST"])
+def debug_task1_direct():
+    response_message = current_app.arm_controller.send_task1_command()
+    return jsonify({"status": "success", "message": response_message})
 
 
-@main_bp.route("/api/simulate_task2_start", methods=["POST"])
-def simulate_task2_start():
-    if current_app.state_manager["status"] != "MANUAL":
-        return jsonify(status="error", message="系统正忙"), 423
-    message = current_app.car_controller.simulate_task2_start()
-    return jsonify(status="success", message=message)
+# --- [核心修改] Task 2 调试按钮现在发送实时AprilTag坐标 ---
+@main_bp.route("/api/debug_task2_direct", methods=["POST"])
+def debug_task2_direct():
+    """
+    获取最新的视觉数据，如果检测到AprilTag，则直接将其坐标发送给机械臂。
+    这用于独立调试视觉定位功能。
+    """
+    vision = current_app.vision_processor
+    arm = current_app.arm_controller
+    data = vision.get_latest_data()
+    tag_data = data.get("apriltag")
+
+    if tag_data and tag_data.get("detected"):
+        response_message = arm.send_april_tag_offset(
+            tag_data.get("offset_x", 0),
+            tag_data.get("offset_y", 0),
+            tag_data.get("distance", 0),
+            tag_data.get("id", -1),
+        )
+        return jsonify(
+            {"status": "success", "message": f"已发送AprilTag数据: {response_message}"}
+        )
+    else:
+        return (
+            jsonify({"status": "error", "message": "未在画面中检测到AprilTag！"}),
+            404,
+        )
 
 
 @main_bp.route("/api/execute_task1_grab", methods=["POST"])
@@ -134,6 +153,24 @@ def set_blob_color():
         return jsonify(status="error", message=message), 400
 
 
+@main_bp.route("/api/toggle_vision_feature", methods=["POST"])
+def toggle_vision_feature():
+    data = request.json
+    feature = data.get("feature")
+    enabled = data.get("enabled")
+
+    if feature == "color_block":
+        status = current_app.vision_processor.set_blob_detection_status(enabled)
+        msg = f"Color block detection {'enabled' if status else 'disabled'}"
+    elif feature == "qrcode":
+        status = current_app.vision_processor.set_qrcode_detection_status(enabled)
+        msg = f"QR code detection {'enabled' if status else 'disabled'}"
+    else:
+        return jsonify(status="error", message=f"Unknown feature: {feature}"), 400
+
+    return jsonify(status="success", message=msg)
+
+
 @main_bp.route("/api/arm_status", methods=["GET"])
 def get_arm_status():
     log = current_app.arm_controller.get_received_log()
@@ -182,7 +219,6 @@ def shutdown():
     return jsonify({"status": "success", "message": "服务正在关闭..."})
 
 
-# --- [已修复] 重新添加 start_tracking 和 stop_tracking 路由 ---
 @main_bp.route("/api/start_tracking", methods=["POST"])
 def start_tracking():
     data = request.json

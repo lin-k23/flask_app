@@ -4,17 +4,38 @@
 #camera-wrapper {
     border: 1px solid var(--panel-border);
     padding: 4px;
-    border-radius: 4px;
+    border-radius: 6px;
+    /* 增加圆角使其更柔和 */
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    min-height: 0;
+    position: relative;
+    /* 移除 !important */
+    background-color: rgba(0, 0, 0, 0.2);
+    /* 增加微妙的背景色 */
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+    /* 增加内部阴影以创造深度感 */
 }
 
 #camera-feed {
-    border-radius: 2px;
+    border-radius: 4px;
+    /* 匹配外部容器的圆角 */
     background-color: #000;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+    /* 确保图片是块级元素 */
 }
 
 .main-display-wrapper .panel-camera {
     padding-bottom: 10px;
-    align-items: center;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .main-display-wrapper .panel-detection {
@@ -96,6 +117,12 @@
     border-radius: 4px;
 }
 
+.main-controls:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    filter: grayscale(50%);
+}
+
 .car-manual-controls {
     display: flex;
     flex-direction: column;
@@ -121,7 +148,6 @@
     transition: all 0.2s ease;
 }
 
-/* Update hover effect to use blue instead of cyan */
 .car-btn:hover {
     background-color: var(--accent-blue);
     border-color: var(--accent-blue);
@@ -133,15 +159,12 @@
     transform: scale(0.95);
 }
 
-/* Remove magenta from stop button, make it standard */
 .car-btn[data-command="stop"] {
     color: var(--text-secondary);
-    /* No special color */
 }
 
 .car-btn[data-command="stop"]:hover {
     background-color: #ff9800;
-    /* Orange for stop/warning */
     border-color: #ff9800;
     color: var(--bg-dark);
     box-shadow: 0 0 10px #ff9800;
@@ -225,10 +248,30 @@
     margin-bottom: 0;
 }
 
-/* --- [最终修正] Panel: Pegboard --- */
-/* 使用 #pegboard-module 作为根选择器 */
+.data-box-header .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.control-select {
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--text-primary);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: 'Roboto Mono', monospace;
+}
+
+/* --- Pegboard --- */
 #pegboard-module {
     justify-content: space-between;
+}
+
+#pegboard.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    filter: grayscale(50%);
 }
 
 #pegboard-module .pegboard-header {
@@ -273,7 +316,7 @@
     background: var(--accent-cyan);
     color: var(--bg-dark);
     text-shadow: none;
-    box-shadow: var(--glow-cyan);
+    box-shadow: 0 0 10px var(--accent-cyan);
 }
 
 #pegboard-module .pegboard-grid-container {
@@ -319,7 +362,23 @@
     transform: translate(-50%, -50%);
 }
 
-#pegboard-module .hole.h1::after {
+#pegboard-module .hole.blue::after {
+    width: 60%;
+    height: 60%;
+    border-radius: 50%;
+    background: #60a5fa;
+    box-shadow: 0 0 8px #60a5fa;
+}
+
+#pegboard-module .hole.yellow::after {
+    width: 70%;
+    height: 70%;
+    border-radius: 4px;
+    background: #facc15;
+    box-shadow: 0 0 8px #facc15;
+}
+
+#pegboard-module .hole.orange::after {
     width: 70%;
     height: 4px;
     border-radius: 2px;
@@ -327,30 +386,14 @@
     box-shadow: 0 0 8px #fb923c;
 }
 
-#pegboard-module .hole.h2::after {
-    width: 70%;
-    height: 8px;
-    border-radius: 3px;
-    background: #60a5fa;
-    box-shadow: 0 0 8px #60a5fa;
-}
-
-#pegboard-module .hole.h3::after {
-    width: 60%;
-    height: 60%;
-    border-radius: 12px;
-    border: 3px solid #34d399;
-    background: transparent;
-    filter: drop-shadow(0 0 5px #34d399);
-}
-
-#pegboard-module .hole.h4::after {
-    width: 70%;
+#pegboard-module .hole.purple::after {
+    width: 4px;
     height: 70%;
-    border-radius: 6px;
+    border-radius: 2px;
     background: #a78bfa;
     box-shadow: 0 0 8px #a78bfa;
 }
+
 
 #pegboard-module .pegboard-footer {
     display: flex;
@@ -381,77 +424,6 @@
     vertical-align: -1px;
 }
 
-#pegboard-module .chip-h1,
-#pegboard-module .dot-h1 {
-    background: #fb923c;
-}
-
-#pegboard-module .chip-h2,
-#pegboard-module .dot-h2 {
-    background: #60a5fa;
-}
-
-#pegboard-module .chip-h3,
-#pegboard-module .dot-h3 {
-    background: #34d399;
-}
-
-#pegboard-module .chip-h4,
-#pegboard-module .dot-h4 {
-    background: #a78bfa;
-}
-
-/* 在 app/static/css/panels.css 文件末尾添加 */
-
-.data-box-header .header-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.control-select {
-    background-color: rgba(0, 0, 0, 0.3);
-    color: var(--text-primary);
-    border: 1px solid var(--panel-border);
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-family: 'Roboto Mono', monospace;
-}
-
-/* 在 app/static/css/panels.css 末尾添加 */
-
-/* 当面板被禁用时的样式 */
-.main-controls:disabled {
-    opacity: 0.5;
-    pointer-events: none;
-    /* 阻止所有鼠标事件 */
-    filter: grayscale(50%);
-}
-
-#pegboard.disabled {
-    opacity: 0.5;
-    pointer-events: none;
-    filter: grayscale(50%);
-}
-
-/* ... (文件原有内容) ... */
-
-/* Style for the new simulation button */
-.system-btn.btn-green {
-    border-color: #4CAF50;
-    /* Green */
-    color: #4CAF50;
-}
-
-.system-btn.btn-green:hover {
-    background-color: #4CAF50;
-    color: var(--bg-dark);
-    box-shadow: 0 0 10px #4CAF50;
-}
-
-/* ... (文件原有内容) ... */
-
-/* [核心修改] 为新的洞洞板颜色按钮添加样式 */
 #pegboard-module .chip-blue,
 #pegboard-module .dot-blue {
     background: #60a5fa;
@@ -472,39 +444,17 @@
     background: #a78bfa;
 }
 
-#pegboard-module .hole.blue::after {
-    width: 70%;
-    height: 70%;
-    border-radius: 4px;
-    background: #60a5fa;
-    box-shadow: 0 0 8px #60a5fa;
+.system-btn.btn-green {
+    border-color: #4CAF50;
+    color: #4CAF50;
 }
 
-#pegboard-module .hole.yellow::after {
-    width: 70%;
-    height: 70%;
-    border-radius: 4px;
-    background: #facc15;
-    box-shadow: 0 0 8px #facc15;
+.system-btn.btn-green:hover {
+    background-color: #4CAF50;
+    color: var(--bg-dark);
+    box-shadow: 0 0 10px #4CAF50;
 }
 
-#pegboard-module .hole.orange::after {
-    width: 70%;
-    height: 70%;
-    border-radius: 4px;
-    background: #fb923c;
-    box-shadow: 0 0 8px #fb923c;
-}
-
-#pegboard-module .hole.purple::after {
-    width: 70%;
-    height: 70%;
-    border-radius: 4px;
-    background: #a78bfa;
-    box-shadow: 0 0 8px #a78bfa;
-}
-
-/* 模拟按钮样式 */
 .system-btn.btn-blue {
     border-color: var(--accent-blue);
     color: var(--accent-blue);
@@ -514,4 +464,14 @@
     background-color: var(--accent-blue);
     color: var(--bg-dark);
     box-shadow: var(--glow-blue);
+}
+
+/* [新增] 让右侧的“主显示区域”在垂直方向上占据更多空间 */
+.display-column .main-display-wrapper {
+    flex-grow: 1;
+    /* 允许此容器在垂直方向上“成长”以填补可用空间 */
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    /* 关键的flexbox修复，防止子元素溢出 */
 }
